@@ -2,1513 +2,169 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Dr. Shoaibs Lern-App</title>
-    
+
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#667eea">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Dr. Shoaibs Lern-App">
+    <meta name="apple-mobile-web-app-title" content="Lern-App">
+    <meta name="description" content="Deutsch-Arabisch Lernkarten mit OCR">
     <link rel="manifest" href="manifest.json">
-    
-    <!-- Tesseract.js for OCR -->
-    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
-    
-    <!-- PDF.js for PDF handling -->
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
-        // PDF.js Worker konfigurieren
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        .phone-frame {
-            width: 100%;
-            max-width: 390px;
-            height: 844px;
-            background: #000;
-            border-radius: 50px;
-            padding: 15px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
-        }
-        .screen {
-            width: 100%;
-            height: 100%;
-            background: #fff;
-            border-radius: 40px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 50px 20px 20px;
-            text-align: center;
-        }
-        .header h1 { font-size: 24px; margin-bottom: 5px; }
-        .header p { opacity: 0.9; font-size: 14px; }
-        .tab-bar {
-            display: flex;
-            background: white;
-            border-bottom: 2px solid #eee;
-        }
-        .tab {
-            flex: 1;
-            padding: 15px 5px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 12px;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-            color: #666;
-        }
-        .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-            font-weight: bold;
-        }
-        .content {
-            display: none;
-            padding: 20px;
-            flex: 1;
-            overflow-y: auto;
-        }
-        .content.active { display: block; }
-        .category-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .category-card {
-            background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-        }
-        .category-card:hover {
-            border-color: #667eea;
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .category-actions {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            display: flex;
-            gap: 5px;
-        }
-        .icon-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 26px;
-            height: 26px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .icon-btn.delete { background: #dc3545; }
-        .category-icon { font-size: 40px; margin-bottom: 10px; }
-        .category-name { font-weight: bold; color: #333; font-size: 15px; }
-        .category-count { font-size: 13px; color: #666; margin-top: 5px; }
-        .upload-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-        }
-        .upload-section h3 { margin-bottom: 10px; font-size: 18px; }
-        .upload-section p { font-size: 13px; opacity: 0.9; margin-bottom: 15px; }
-        .word-form {
-            background: #f8f9ff;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-        }
-        .word-form h3 { color: #333; margin-bottom: 15px; font-size: 16px; }
-        .word-form input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 15px;
-            margin-bottom: 10px;
-        }
-        .word-form input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .arabic-input {
-            font-family: 'Amiri', serif;
-            font-size: 18px;
-        }
-        .new-cat-box {
-            background: #f0f4ff;
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .new-cat-box p {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 10px;
-        }
-        .pending-box {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-        }
-        .pending-word {
-            background: white;
-            padding: 12px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .pending-word-text { flex: 1; }
-        .pending-word-text strong { color: #333; }
-        .pending-word-text .ar { font-family: 'Amiri', serif; font-size: 18px; color: #667eea; }
-        .remove-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 28px;
-            height: 28px;
-            cursor: pointer;
-        }
-        .direction-box {
-            background: #f8f9ff;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-        }
-        .direction-option {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            background: white;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            cursor: pointer;
-        }
-        .direction-option input { margin-right: 10px; }
-        .flashcard-container {
-            perspective: 1000px;
-            margin-bottom: 20px;
-        }
-        .flashcard {
-            position: relative;
-            width: 100%;
-            min-height: 350px;
-            transform-style: preserve-3d;
-            transition: transform 0.6s;
-            cursor: pointer;
-        }
-        .flashcard.flipped {
-            transform: rotateY(180deg);
-        }
-        .flashcard-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            min-height: 350px;
-            backface-visibility: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 40px 30px;
-            border-radius: 20px;
-            color: white;
-        }
-        .flashcard-front {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .flashcard-back {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            transform: rotateY(180deg);
-        }
-        .flashcard-number { font-size: 14px; opacity: 0.8; margin-bottom: 20px; }
-        .flashcard-text {
-            font-size: 36px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            line-height: 1.4;
-        }
-        .flashcard-text.ar {
-            font-family: 'Amiri', serif;
-            font-size: 42px;
-            line-height: 1.8;
-        }
-        .flashcard-example {
-            background: rgba(255,255,255,0.2);
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-        .flashcard-hint { margin-top: 20px; font-size: 13px; opacity: 0.9; }
-        .card-controls {
-            display: flex;
-            gap: 15px;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 80px 20px;
-            color: #999;
-        }
-        .empty-icon { font-size: 64px; margin-bottom: 20px; }
-        .btn {
-            width: 100%;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .btn:active { transform: scale(0.95); }
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        .btn-secondary {
-            background: #f5f5f5;
-            color: #333;
-        }
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-        .btn-white {
-            background: white;
-            color: #667eea;
-        }
-        .btn-small {
-            padding: 10px 20px;
-            font-size: 13px;
-        }
-        select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #667eea;
-            border-radius: 10px;
-            font-size: 15px;
-            margin-bottom: 15px;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal.active { display: flex; }
-        .modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 350px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-        .icon-picker {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .icon-option-picker {
-            font-size: 32px;
-            padding: 10px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.3s;
-        }
-        .icon-option-picker.selected {
-            border-color: #667eea;
-            background: #f8f9ff;
-        }
-        .hidden {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            height: 0 !important;
-            overflow: hidden !important;
-            position: absolute !important;
-            left: -9999px !important;
-        }
-        .debug-border {
-            border: 5px solid red !important;
-            background: yellow !important;
-        }
-    </style>
+
+    <!-- Tesseract.js (Fallback) -->
+    <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-    <div class="phone-frame">
-        <div class="screen">
-            <div class="header">
-                <h1>👨‍⚕️ Dr. Shoaibs Lern-App</h1>
-                <p>Deutsch ↔ Arabisch</p>
-            </div>
-            
-            <div class="tab-bar">
-                <div class="tab active" onclick="switchTab('categories')">📂 Kategorien</div>
-                <div class="tab" onclick="switchTab('upload')">📤 Upload</div>
-                <div class="tab" onclick="switchTab('learn')">📚 Lernen</div>
-            </div>
-            
-            <div id="categories" class="content active">
-                <button class="btn btn-primary btn-small" onclick="createNewCategory()">+ Neue Kategorie</button>
-                <div id="categoryGrid" class="category-grid"></div>
-            </div>
-            
-            <div id="upload" class="content">
-                <!-- Real Photo Upload mit OCR -->
-                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px;">
-                    <h3 style="margin-bottom: 10px;">📷 Foto oder PDF hochladen</h3>
-                    <p style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">Lade ein Foto mit Vokabeln hoch - wird automatisch erkannt!</p>
-                    <p style="font-size: 12px; opacity: 0.8; margin-bottom: 15px;">✅ Unterstützt: JPG, PNG, PDF (mehrere Seiten)</p>
-                    
-                    <input type="file" id="photoInput" accept="image/*,application/pdf" style="display: none;" onchange="handlePhotoUpload(this)">
-                    <button class="btn" style="background: white; color: #f5576c; width: 100%; margin-bottom: 10px;" onclick="document.getElementById('photoInput').click()">
-                        📸 Foto aus Galerie wählen
-                    </button>
-                    <button class="btn" style="background: rgba(255,255,255,0.3); color: white; width: 100%;" onclick="openCamera()">
-                        📷 Kamera öffnen
-                    </button>
-                    
-                    <!-- Progress Bar -->
-                    <div id="ocrProgress" style="display: none; margin-top: 15px;">
-                        <div style="background: rgba(255,255,255,0.3); border-radius: 10px; padding: 10px; margin-bottom: 10px;">
-                            <div style="font-size: 13px; margin-bottom: 5px;" id="ocrStatus">🔄 Initialisiere OCR...</div>
-                            <div style="background: rgba(255,255,255,0.5); height: 6px; border-radius: 3px; overflow: hidden;">
-                                <div id="ocrProgressBar" style="background: white; height: 100%; width: 0%; transition: width 0.3s;"></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Image Preview -->
-                    <div id="imagePreview" style="display: none; margin-top: 15px;">
-                        <img id="previewImg" style="width: 100%; border-radius: 10px; border: 2px solid white;" />
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>👨‍⚕️ Dr. Shoaibs Lern-App</h1>
+            <p>Deutsch ↔ Arabisch</p>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <div class="tab active" data-tab="categories" onclick="switchTab('categories')">📂 Kategorien</div>
+            <div class="tab" data-tab="upload" onclick="switchTab('upload')">📤 Upload</div>
+            <div class="tab" data-tab="learn" onclick="switchTab('learn')">📚 Lernen</div>
+        </div>
+
+        <!-- ===== KATEGORIEN TAB ===== -->
+        <div id="categories" class="content active">
+            <button class="btn btn-primary btn-small mb-md" onclick="openNewCatModal()">+ Neue Kategorie</button>
+            <div id="categoryGrid" class="category-grid"></div>
+        </div>
+
+        <!-- ===== UPLOAD TAB ===== -->
+        <div id="upload" class="content">
+            <!-- Upload Hero -->
+            <div class="upload-hero">
+                <h3>📷 Foto oder PDF hochladen</h3>
+                <p class="subtitle">Lade ein Foto mit Vokabeln hoch — wird automatisch erkannt!<br>✅ JPG, PNG, PDF (mehrere Seiten)</p>
+
+                <input type="file" id="fileInput" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="handleUpload(this)">
+
+                <div class="upload-buttons">
+                    <button class="btn btn-white" onclick="triggerFileUpload()">📸 Datei wählen</button>
+                    <button class="btn btn-accent" onclick="openCamera()">📷 Kamera</button>
+                </div>
+
+                <!-- Progress -->
+                <div id="progressContainer" class="progress-container">
+                    <div id="progressStatus" class="progress-status">🔄 Initialisiere...</div>
+                    <div class="progress-bar-bg">
+                        <div id="progressBar" class="progress-bar"></div>
                     </div>
                 </div>
-                
-                <div class="word-form">
-                    <h3>✍️ Manuell hinzufügen</h3>
-                    <input type="text" id="germanWord" placeholder="Deutsches Wort">
-                    <input type="text" id="arabicWord" placeholder="Arabisches Wort" class="arabic-input">
-                    <input type="text" id="exampleText" placeholder="Beispiel (optional)">
-                    <button class="btn btn-primary" onclick="addWord()">➕ Hinzufügen</button>
-                </div>
-                
-                <div class="new-cat-box">
-                    <p>Neue Kategorie benötigt?</p>
-                    <button class="btn btn-secondary btn-small" onclick="quickCreateCategory()">➕ Neue Kategorie</button>
-                </div>
-                
-                <div id="pendingContainer" class="hidden">
-                    <div class="pending-box">
-                        <h3 style="margin-bottom: 15px;">📋 Bereit (<span id="pendingCount">0</span>)</h3>
-                        <div id="pendingList"></div>
-                        
-                        <div class="direction-box">
-                            <h4 style="margin-bottom: 10px; font-size: 14px;">Richtung:</h4>
-                            <label class="direction-option">
-                                <input type="radio" name="dir" value="de-ar" checked>
-                                <span>➡️ Deutsch → Arabisch (empfohlen)</span>
-                            </label>
-                            <label class="direction-option">
-                                <input type="radio" name="dir" value="ar-de">
-                                <span>⬅️ Arabisch → Deutsch</span>
-                            </label>
-                            <label class="direction-option">
-                                <input type="radio" name="dir" value="both">
-                                <span>🔄 Beides (2x so viele Karten)</span>
-                            </label>
-                        </div>
-                        
-                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Kategorie:</label>
-                        <select id="targetCat"></select>
-                        
-                        <button class="btn btn-success" onclick="createCards()" style="margin-top: 15px;">✅ Karten erstellen</button>
-                    </div>
+
+                <!-- Preview -->
+                <div id="imagePreview" class="image-preview">
+                    <img id="previewImg" alt="Vorschau">
                 </div>
             </div>
-            
-            <div id="learn" class="content">
-                <div id="learnArea">
-                    <div class="empty-state">
-                        <div class="empty-icon">📂</div>
-                        <div>Wähle eine Kategorie<br>im Kategorien-Tab!</div>
+
+            <!-- Manual Add -->
+            <div class="word-form">
+                <h3>✍️ Manuell hinzufügen</h3>
+                <input type="text" id="germanWord" class="form-input" placeholder="Deutsches Wort" autocomplete="off">
+                <input type="text" id="arabicWord" class="form-input arabic" placeholder="Arabisches Wort" autocomplete="off" dir="rtl">
+                <input type="text" id="exampleText" class="form-input" placeholder="Beispiel (optional)" autocomplete="off">
+                <button class="btn btn-primary" onclick="addWord()">➕ Hinzufügen</button>
+            </div>
+
+            <!-- Quick Category -->
+            <div class="quick-category">
+                <p>Neue Kategorie benötigt?</p>
+                <button class="btn btn-secondary btn-small" onclick="openNewCatModal()">➕ Neue Kategorie</button>
+            </div>
+
+            <!-- Pending Words -->
+            <div id="pendingContainer" class="hidden">
+                <div class="pending-box">
+                    <h3>📋 Bereit (<span id="pendingCount">0</span>)</h3>
+                    <div id="pendingList"></div>
+
+                    <div class="direction-box">
+                        <h4 style="margin-bottom: 8px; font-size: 14px;">Richtung:</h4>
+                        <label class="direction-option">
+                            <input type="radio" name="dir" value="de-ar" checked>
+                            <span>➡️ Deutsch → Arabisch (empfohlen)</span>
+                        </label>
+                        <label class="direction-option">
+                            <input type="radio" name="dir" value="ar-de">
+                            <span>⬅️ Arabisch → Deutsch</span>
+                        </label>
+                        <label class="direction-option">
+                            <input type="radio" name="dir" value="both">
+                            <span>🔄 Beides (2× so viele Karten)</span>
+                        </label>
                     </div>
+
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Kategorie:</label>
+                    <select id="targetCat"></select>
+
+                    <button class="btn btn-success mt-sm" onclick="createCards()">✅ Karten erstellen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== LERNEN TAB ===== -->
+        <div id="learn" class="content">
+            <div id="learnArea">
+                <div class="empty-state">
+                    <div class="empty-icon">📂</div>
+                    <p>Wähle eine Kategorie<br>im Kategorien-Tab!</p>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- ===== MODALS ===== -->
+
+    <!-- Edit Category Modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
-            <h3 style="color: #333; margin-bottom: 20px;">📝 Kategorie bearbeiten</h3>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Name:</label>
-            <input type="text" id="editName" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #333;">Icon wählen:</label>
-            <div id="iconPicker" class="icon-picker"></div>
-            <button class="btn btn-primary" onclick="saveEdit()" style="margin-bottom: 10px;">✅ Speichern</button>
-            <button class="btn btn-secondary" onclick="closeEditModal()">Abbrechen</button>
+            <h3>📝 Kategorie bearbeiten</h3>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Name:</label>
+            <input type="text" id="editName" class="form-input" autocomplete="off">
+            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 14px;">Icon wählen:</label>
+            <div id="editIconPicker" class="icon-picker"></div>
+            <button class="btn btn-primary mb-sm" onclick="saveEdit()">✅ Speichern</button>
+            <button class="btn btn-secondary" onclick="closeModal('editModal')">Abbrechen</button>
         </div>
     </div>
 
+    <!-- New Category Modal -->
     <div id="newCatModal" class="modal">
         <div class="modal-content">
-            <h3 style="color: #333; margin-bottom: 20px;">➕ Neue Kategorie erstellen</h3>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Name:</label>
-            <input type="text" id="newCatName" placeholder="z.B. Kapitel 1, Verben, Medizin..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #333;">Icon wählen:</label>
+            <h3>➕ Neue Kategorie erstellen</h3>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Name:</label>
+            <input type="text" id="newCatName" class="form-input" placeholder="z.B. Kapitel 1, Verben, Medizin..." autocomplete="off">
+            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 14px;">Icon wählen:</label>
             <div id="newCatIconPicker" class="icon-picker"></div>
-            <button class="btn btn-primary" onclick="saveNewCat()" style="margin-bottom: 10px;">✅ Erstellen</button>
-            <button class="btn btn-secondary" onclick="closeNewCatModal()">Abbrechen</button>
+            <button class="btn btn-primary mb-sm" onclick="saveNewCat()">✅ Erstellen</button>
+            <button class="btn btn-secondary" onclick="closeModal('newCatModal')">Abbrechen</button>
         </div>
     </div>
 
-    <script>
-        let categories = JSON.parse(localStorage.getItem('cats')) || [
-            {id: 'verben', name: 'Verben', icon: '🏃'},
-            {id: 'nomen', name: 'Nomen', icon: '📝'},
-            {id: 'alltag', name: 'Alltag', icon: '🏠'}
-        ];
-        let cards = JSON.parse(localStorage.getItem('cards')) || [];
-        let pending = [];
-        let currentCat = null;
-        let currentCards = [];
-        let currentIdx = 0;
-        let flipped = false;
-        let editingCatId = null;
-        let selectedIcon = null;
-        let newCatSelectedIcon = null;
-        const availableIcons = ['📝','🏃','🏠','🍕','✈️','🏥','💼','🎓','⚽','🎵','📚','🌍','🎨','🔧','💊','🎯','🚗','📱','💡','🎪'];
-        
-        function save() {
-            localStorage.setItem('cats', JSON.stringify(categories));
-            localStorage.setItem('cards', JSON.stringify(cards));
-            console.log('💾 Gespeichert:', cards.length, 'Karten,', categories.length, 'Kategorien');
-        }
-        
-        function switchTab(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tab).classList.add('active');
-            if (tab === 'categories') renderCategories();
-        }
-        
-        function renderCategories() {
-            const grid = document.getElementById('categoryGrid');
-            const sel = document.getElementById('targetCat');
-            grid.innerHTML = categories.map(cat => {
-                const count = cards.filter(c => c.cat === cat.id).length;
-                return `
-                    <div class="category-card" onclick="selectCat('${cat.id}')">
-                        <div class="category-actions" onclick="event.stopPropagation()">
-                            <button class="icon-btn" onclick="editCategory('${cat.id}')">✏️</button>
-                            <button class="icon-btn delete" onclick="deleteCategory('${cat.id}')">🗑️</button>
-                        </div>
-                        <div class="category-icon">${cat.icon}</div>
-                        <div class="category-name">${cat.name}</div>
-                        <div class="category-count">${count} Karten</div>
-                    </div>
-                `;
-            }).join('');
-            if (sel) {
-                sel.innerHTML = categories.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
-            }
-        }
-        
-        function createNewCategory() {
-            openNewCatModal();
-        }
-        
-        function quickCreateCategory() {
-            openNewCatModal();
-        }
-        
-        function openNewCatModal() {
-            console.log('🟢 Öffne Neue-Kategorie-Modal');
-            
-            // Reset
-            document.getElementById('newCatName').value = '';
-            newCatSelectedIcon = availableIcons[0];
-            
-            // Render icon picker
-            const picker = document.getElementById('newCatIconPicker');
-            picker.innerHTML = availableIcons.map(icon => `
-                <div class="icon-option-picker ${icon === newCatSelectedIcon ? 'selected' : ''}" onclick="selectNewCatIcon('${icon}')" data-icon="${icon}">
-                    ${icon}
-                </div>
-            `).join('');
-            
-            document.getElementById('newCatModal').classList.add('active');
-        }
-        
-        function selectNewCatIcon(icon) {
-            newCatSelectedIcon = icon;
-            document.querySelectorAll('#newCatIconPicker .icon-option-picker').forEach(el => {
-                if (el.getAttribute('data-icon') === icon) {
-                    el.classList.add('selected');
-                } else {
-                    el.classList.remove('selected');
-                }
-            });
-        }
-        
-        function saveNewCat() {
-            const name = document.getElementById('newCatName').value.trim();
-            
-            if (!name) {
-                alert('⚠️ Bitte einen Namen eingeben!');
-                return;
-            }
-            
-            const newCat = {
-                id: 'cat_' + Date.now(),
-                name: name,
-                icon: newCatSelectedIcon
-            };
-            
-            console.log('✅ Erstelle Kategorie:', newCat);
-            
-            categories.push(newCat);
-            save();
-            renderCategories();
-            closeNewCatModal();
-            
-            alert('✅ Kategorie "' + name + '" wurde erstellt!');
-        }
-        
-        function closeNewCatModal() {
-            document.getElementById('newCatModal').classList.remove('active');
-        }
-        
-        function testButton() {
-            console.log('🟢 TEST: Öffne Modal direkt');
-            openNewCatModal();
-        }
-        
-        function editCategory(catId) {
-            const cat = categories.find(c => c.id === catId);
-            if (!cat) return;
-            editingCatId = catId;
-            selectedIcon = cat.icon;
-            document.getElementById('editName').value = cat.name;
-            const picker = document.getElementById('iconPicker');
-            picker.innerHTML = availableIcons.map(icon => `
-                <div class="icon-option-picker ${icon === selectedIcon ? 'selected' : ''}" onclick="selectEditIcon('${icon}')" data-icon="${icon}">
-                    ${icon}
-                </div>
-            `).join('');
-            document.getElementById('editModal').classList.add('active');
-        }
-        
-        function selectEditIcon(icon) {
-            selectedIcon = icon;
-            document.querySelectorAll('.icon-option-picker').forEach(el => {
-                if (el.getAttribute('data-icon') === icon) {
-                    el.classList.add('selected');
-                } else {
-                    el.classList.remove('selected');
-                }
-            });
-        }
-        
-        function saveEdit() {
-            const cat = categories.find(c => c.id === editingCatId);
-            if (!cat) return;
-            const newName = document.getElementById('editName').value.trim();
-            if (!newName) {
-                alert('⚠️ Bitte Namen eingeben!');
-                return;
-            }
-            cat.name = newName;
-            cat.icon = selectedIcon;
-            save();
-            renderCategories();
-            closeEditModal();
-            alert('✅ Kategorie aktualisiert!');
-        }
-        
-        function closeEditModal() {
-            document.getElementById('editModal').classList.remove('active');
-            editingCatId = null;
-            selectedIcon = null;
-        }
-        
-        function deleteCategory(catId) {
-            const cat = categories.find(c => c.id === catId);
-            if (!cat) return;
-            const cardCount = cards.filter(c => c.cat === catId).length;
-            const msg = cardCount > 0 
-                ? `⚠️ ACHTUNG!\n\nKategorie "${cat.name}" enthält ${cardCount} Karten!\n\nWirklich löschen?`
-                : `Kategorie "${cat.name}" löschen?`;
-            if (!confirm(msg)) return;
-            categories = categories.filter(c => c.id !== catId);
-            cards = cards.filter(c => c.cat !== catId);
-            save();
-            renderCategories();
-            alert('✅ Kategorie gelöscht!' + (cardCount > 0 ? `\n${cardCount} Karten entfernt.` : ''));
-        }
-        
-        function selectCat(id) {
-            currentCat = id;
-            currentCards = cards.filter(c => c.cat === id);
-            currentIdx = 0;
-            flipped = false;
-            if (currentCards.length === 0) {
-                alert('📭 Keine Karten in dieser Kategorie!');
-                return;
-            }
-            document.querySelectorAll('.tab')[2].click();
-            showCard();
-        }
-        
-        // ===== GEMINI API CONFIGURATION =====
-        const GEMINI_API_KEY = 'AIzaSyDD3Eyb10Tuc2GSwZxF27UWnhu7TNAmvlM'; // Dein persönlicher Key
-        const USE_GEMINI = true; // true = Gemini OCR (BESTE Qualität!), false = Tesseract
-        
-        // ===== CAMERA FUNCTION =====
-        function openCamera() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.capture = 'environment'; // Rückkamera
-            input.onchange = (e) => handlePhotoUpload(input);
-            input.click();
-        }
-        
-        // ===== OCR WORKFLOW STATE =====
-        let ocrState = {
-            text: '',
-            detectedWords: [],
-            currentFile: null,
-            previewURL: null,
-            isProcessing: false
-        };
-        
-        // ===== RESET WORKFLOW =====
-        function resetOCRWorkflow() {
-            console.log('🔄 Resetting OCR workflow...');
-            
-            // Clear state
-            ocrState.text = '';
-            ocrState.detectedWords = [];
-            ocrState.currentFile = null;
-            
-            // Revoke object URL if exists
-            if (ocrState.previewURL) {
-                URL.revokeObjectURL(ocrState.previewURL);
-                ocrState.previewURL = null;
-            }
-            
-            // Reset file input
-            const input = document.getElementById('photoInput');
-            if (input) input.value = '';
-            
-            // Hide preview and progress
-            document.getElementById('imagePreview').style.display = 'none';
-            document.getElementById('ocrProgress').style.display = 'none';
-            
-            console.log('✅ OCR workflow reset complete');
-        }
-        
-        // ===== MAIN UPLOAD HANDLER =====
-        async function handlePhotoUpload(input) {
-            if (!input.files || !input.files[0]) return;
-            
-            const file = input.files[0];
-            const fileType = file.type;
-            
-            console.log('📁 File uploaded:', file.name, 'Type:', fileType);
-            
-            // Check if pending has words
-            if (pending.length > 0) {
-                const confirm = window.confirm(
-                    `⚠️ Es sind bereits ${pending.length} Wörter in der Liste!\n\n` +
-                    `Möchtest du sie überschreiben?\n\n` +
-                    `OK = Alte Wörter löschen\n` +
-                    `Abbrechen = Behalten`
-                );
-                
-                if (!confirm) {
-                    resetOCRWorkflow();
-                    return;
-                }
-                
-                pending = [];
-                renderPending();
-            }
-            
-            // Reset previous workflow
-            resetOCRWorkflow();
-            
-            // Store current file
-            ocrState.currentFile = file;
-            
-            // Route to correct handler
-            if (fileType === 'application/pdf') {
-                await handlePdfUpload(file);
-            } else if (fileType.startsWith('image/')) {
-                await handleImageUpload(file);
-            } else {
-                alert('❌ Nicht unterstütztes Dateiformat!\n\nNutze: JPG, PNG oder PDF');
-                resetOCRWorkflow();
-            }
-        }
-        
-        // ===== IMAGE UPLOAD HANDLER =====
-        async function handleImageUpload(file) {
-            console.log('🖼️ Processing image...');
-            
-            const progressDiv = document.getElementById('ocrProgress');
-            const previewDiv = document.getElementById('imagePreview');
-            const previewImg = document.getElementById('previewImg');
-            
-            try {
-                // Show preview
-                ocrState.previewURL = URL.createObjectURL(file);
-                previewImg.src = ocrState.previewURL;
-                previewDiv.style.display = 'block';
-                
-                // Show progress
-                progressDiv.style.display = 'block';
-                updateProgress('🔄 Starte OCR...', 10);
-                
-                let words = [];
-                
-                // Choose OCR method
-                if (USE_GEMINI) {
-                    console.log('🤖 Nutze Gemini AI OCR');
-                    words = await runGeminiOCR(file, (status, progress) => {
-                        updateProgress(status, progress);
-                    });
-                } else {
-                    console.log('👁️ Nutze Tesseract OCR');
-                    const text = await runOCR(file, (status, progress) => {
-                        updateProgress(status, progress);
-                    });
-                    words = extractWords(text);
-                }
-                
-                // Process results
-                if (words.length === 0) {
-                    updateProgress('⚠️ Keine Wortpaare erkannt', 100, '#ff9800');
-                    setTimeout(() => {
-                        alert(
-                            '⚠️ Keine Wortpaare erkannt!\n\n' +
-                            'Versuche:\n' +
-                            '• Besseres Foto (mehr Licht)\n' +
-                            '• Klarere Schrift\n' +
-                            '• Oder "Manuell hinzufügen"'
-                        );
-                        hideProgressWithDelay();
-                    }, 1000);
-                } else {
-                    pending = pending.concat(words);
-                    renderPending();
-                    updateProgress('✅ Erfolgreich erkannt!', 100, '#4caf50');
-                    setTimeout(() => {
-                        alert(`✅ ${words.length} Wortpaar${words.length > 1 ? 'e' : ''} erkannt!\n\nPrüfe die Liste und wähle eine Kategorie.`);
-                        hideProgressWithDelay();
-                    }, 500);
-                }
-                
-            } catch (error) {
-                handleOCRError(error);
-            }
-        }
-        
-        // ===== PDF UPLOAD HANDLER =====
-        async function handlePdfUpload(file) {
-            console.log('📄 Processing PDF...');
-            
-            const progressDiv = document.getElementById('ocrProgress');
-            const previewDiv = document.getElementById('imagePreview');
-            
-            try {
-                progressDiv.style.display = 'block';
-                updateProgress('📄 Lade PDF...', 5);
-                
-                // Load PDF
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                
-                console.log(`📄 PDF geladen: ${pdf.numPages} Seiten`);
-                
-                let allText = '';
-                
-                // Process each page
-                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                    updateProgress(`📄 Verarbeite Seite ${pageNum}/${pdf.numPages}...`, 10 + (pageNum / pdf.numPages * 40));
-                    
-                    const page = await pdf.getPage(pageNum);
-                    
-                    // Render page to canvas
-                    const scale = 2.0; // Higher scale = better quality
-                    const viewport = page.getViewport({ scale });
-                    
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.width = viewport.width;
-                    canvas.height = viewport.height;
-                    
-                    await page.render({
-                        canvasContext: context,
-                        viewport: viewport
-                    }).promise;
-                    
-                    // Show first page as preview
-                    if (pageNum === 1) {
-                        const previewImg = document.getElementById('previewImg');
-                        previewImg.src = canvas.toDataURL();
-                        previewDiv.style.display = 'block';
-                    }
-                    
-                    // OCR on this page
-                    updateProgress(`🔍 OCR auf Seite ${pageNum}/${pdf.numPages}...`, 50 + (pageNum / pdf.numPages * 40));
-                    
-                    const pageText = await runOCROnCanvas(canvas, (status, progress) => {
-                        // Don't update main progress during page OCR
-                    });
-                    
-                    allText += pageText + '\n\n';
-                    
-                    console.log(`✅ Seite ${pageNum} fertig`);
-                }
-                
-                updateProgress('✅ PDF vollständig verarbeitet!', 100);
-                
-                // Process combined text
-                await processOCRResult(allText);
-                
-            } catch (error) {
-                handleOCRError(error);
-            }
-        }
-        
-        // ===== RUN GEMINI OCR =====
-        async function runGeminiOCR(file, progressCallback) {
-            progressCallback('🤖 Starte Gemini AI...', 20);
-            
-            // Convert to base64
-            const base64 = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const base64String = reader.result.split(',')[1];
-                    resolve(base64String);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-            
-            progressCallback('📤 Sende Bild an Gemini...', 40);
-            
-            const prompt = `Du bist ein OCR-Experte für Deutsch-Arabische Vokabellisten.
-
-Analysiere dieses Bild und extrahiere ALLE Deutsch-Arabisch Wortpaare.
-
-WICHTIG:
-- Erkenne BEIDE Richtungen: Deutsch→Arabisch UND Arabisch→Deutsch
-- Speichere aber IMMER als: {"de": "deutsches_wort", "ar": "arabisches_wort"}
-- Arabisch MIT Tashkeel (Vokalzeichen) beibehalten!
-- Deutsch in Kleinbuchstaben
-- Ignoriere Sonderzeichen, Zahlen, Müll
-
-FORMAT:
-Gib mir NUR ein JSON-Array zurück, NICHTS ANDERES:
-[
-  {"de": "glauben", "ar": "آمَنَ بِاللّه"},
-  {"de": "nehmen", "ar": "أَخَذَ هُ"}
-]
-
-KEIN Text davor oder danach - NUR das JSON-Array!`;
-
-            try {
-                const response = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{
-                                parts: [
-                                    { text: prompt },
-                                    { inline_data: { mime_type: file.type, data: base64 } }
-                                ]
-                            }],
-                            generationConfig: {
-                                temperature: 0.1,
-                                maxOutputTokens: 2048
-                            }
-                        })
-                    }
-                );
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('❌ Gemini API Error:', errorText);
-                    throw new Error(`Gemini API Error: ${response.status}`);
-                }
-                
-                progressCallback('🧠 Gemini analysiert...', 70);
-                
-                const data = await response.json();
-                console.log('🤖 Gemini Response:', data);
-                
-                const text = data.candidates[0].content.parts[0].text;
-                console.log('📝 Gemini Text:', text);
-                
-                progressCallback('📋 Verarbeite Ergebnisse...', 90);
-                
-                // Extract JSON from response
-                const jsonMatch = text.match(/\[[\s\S]*\]/);
-                if (!jsonMatch) {
-                    console.error('❌ Kein JSON gefunden in:', text);
-                    throw new Error('Gemini gab kein JSON zurück');
-                }
-                
-                const words = JSON.parse(jsonMatch[0]);
-                console.log('✅ Gemini erkannte Wörter:', words);
-                
-                // Validate and clean
-                const validWords = words
-                    .filter(w => w.de && w.ar && w.de.length >= 2)
-                    .map(w => ({
-                        de: w.de.toLowerCase().trim(),
-                        ar: w.ar.trim(),
-                        ex: w.ex || ''
-                    }));
-                
-                console.log('✅ Validierte Wörter:', validWords);
-                
-                return validWords;
-                
-            } catch (error) {
-                console.error('❌ Gemini OCR Error:', error);
-                throw error;
-            }
-        }
-        
-        // ===== RUN OCR ON FILE =====
-        async function runOCR(file, progressCallback) {
-            const worker = await Tesseract.createWorker('deu+ara', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        const progress = Math.round(m.progress * 100);
-                        progressCallback(`🔍 Erkenne Text... ${progress}%`, 50 + progress / 2);
-                    } else if (m.status === 'loading tesseract core') {
-                        progressCallback('⬇️ Lade Tesseract...', 20);
-                    } else if (m.status === 'initializing tesseract') {
-                        progressCallback('⚙️ Initialisiere...', 30);
-                    } else if (m.status === 'loading language traineddata') {
-                        progressCallback('📚 Lade Deutsch & Arabisch...', 40);
-                    }
-                },
-                errorHandler: err => console.error('Tesseract Error:', err)
-            });
-            
-            // VERBESSERTE OCR-EINSTELLUNGEN
-            await worker.setParameters({
-                tessedit_pageseg_mode: Tesseract.PSM.AUTO,
-                preserve_interword_spaces: '1',
-                tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzäöüßABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ ابتثجحخدذرزسشصضطظعغفقكلمنهويىءآأإةؤئًٌٍَُِّْ',
-            });
-            
-            const { data: { text } } = await worker.recognize(file);
-            
-            console.log('📝 Roher OCR-Text:', text);
-            console.log('📏 Textlänge:', text.length, 'Zeichen');
-            
-            await worker.terminate();
-            
-            return text;
-        }
-        
-        // ===== RUN OCR ON CANVAS (for PDF pages) =====
-        async function runOCROnCanvas(canvas, progressCallback) {
-            const blob = await new Promise(resolve => canvas.toBlob(resolve));
-            
-            const worker = await Tesseract.createWorker('deu+ara', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        const progress = Math.round(m.progress * 100);
-                        progressCallback(`🔍 OCR... ${progress}%`, progress);
-                    }
-                }
-            });
-            
-            const { data: { text } } = await worker.recognize(blob);
-            await worker.terminate();
-            
-            return text;
-        }
-        
-        // ===== PROCESS OCR RESULT =====
-        async function processOCRResult(text) {
-            console.log('📝 Raw OCR text:', text);
-            
-            ocrState.text = text;
-            
-            // Extract words
-            const words = extractWords(text);
-            
-            console.log('📋 Extracted words:', words);
-            
-            if (words.length === 0) {
-                updateProgress('⚠️ Keine Wortpaare erkannt', 100, '#ff9800');
-                
-                setTimeout(() => {
-                    // Zeige OCR-Text im Alert
-                    const preview = text.substring(0, 300);
-                    const hasMore = text.length > 300;
-                    
-                    alert(
-                        '⚠️ Keine Wortpaare erkannt!\n\n' +
-                        'OCR hat folgenden Text erkannt:\n\n' +
-                        '━━━━━━━━━━━━━━━━━━━━\n' +
-                        preview + (hasMore ? '...' : '') + '\n' +
-                        '━━━━━━━━━━━━━━━━━━━━\n\n' +
-                        'Mögliche Gründe:\n' +
-                        '• Text zu unscharf/verwackelt\n' +
-                        '• Keine klare DE-AR Trennung\n' +
-                        '• Schlechtes Licht\n\n' +
-                        '💡 Tipp:\n' +
-                        '• Besseres Foto machen\n' +
-                        '• Oder "Manuell hinzufügen" nutzen\n\n' +
-                        '🔍 Vollständiger Text in Browser-Console (F12)'
-                    );
-                    console.log('📄 VOLLSTÄNDIGER OCR-TEXT:');
-                    console.log('━'.repeat(50));
-                    console.log(text);
-                    console.log('━'.repeat(50));
-                    hideProgressWithDelay();
-                }, 1000);
-                
-                return;
-            }
-            
-            // Add to pending
-            pending = pending.concat(words);
-            renderPending();
-            
-            updateProgress('✅ Erfolgreich erkannt!', 100, '#4caf50');
-            
-            setTimeout(() => {
-                alert(`✅ ${words.length} Wortpaar${words.length > 1 ? 'e' : ''} erkannt!\n\nPrüfe die Liste und wähle eine Kategorie.`);
-                hideProgressWithDelay();
-            }, 500);
-        }
-        
-        // ===== EXTRACT WORDS FROM TEXT =====
-        function extractWords(text) {
-            console.log('🔍 Starte Wort-Extraktion...');
-            console.log('📄 Original-Text:', text);
-            
-            // Bereinige Text
-            const cleanedText = text
-                .replace(/\|/g, ' ')  // Trennzeichen ersetzen
-                .replace(/[→←]/g, ' ') // Pfeile ersetzen
-                .replace(/\s+/g, ' ') // Mehrfache Leerzeichen
-                .trim();
-            
-            const lines = cleanedText.split('\n')
-                .map(l => l.trim())
-                .filter(l => l.length > 0);
-            
-            console.log('📋 Zeilen gefunden:', lines.length);
-            
-            // VERBESSERTE PATTERNS
-            const arabicPattern = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+/g;
-            const germanPattern = /[a-zäöüßA-ZÄÖÜ]{2,}/g;
-            
-            let detectedWords = [];
-            let i = 0;
-            
-            while (i < lines.length) {
-                const line = lines[i];
-                
-                console.log(`📝 Zeile ${i + 1}/${lines.length}: "${line}"`);
-                
-                const arabicMatches = line.match(arabicPattern);
-                const germanMatches = line.match(germanPattern);
-                
-                console.log(`  🇩🇪 Deutsch:`, germanMatches);
-                console.log(`  🇸🇦 Arabisch:`, arabicMatches);
-                
-                let germanWord = null;
-                let arabicWord = null;
-                
-                // BEIDE in gleicher Zeile
-                if (germanMatches && arabicMatches) {
-                    germanWord = cleanWord(germanMatches[0]);
-                    arabicWord = arabicMatches[0];
-                    
-                    console.log(`  ✅ Beide gefunden: ${germanWord} ↔ ${arabicWord}`);
-                    
-                    if (germanWord.length >= 2 && arabicWord.length > 0) {
-                        detectedWords.push({ de: germanWord, ar: arabicWord, ex: '' });
-                        console.log(`  ➕ Gespeichert als: ${germanWord} → ${arabicWord}`);
-                    }
-                    i++;
-                }
-                // NUR Deutsch - schaue nächste Zeile
-                else if (germanMatches && !arabicMatches) {
-                    germanWord = cleanWord(germanMatches[0]);
-                    
-                    // Prüfe nächste Zeile
-                    if (i + 1 < lines.length) {
-                        const nextLine = lines[i + 1];
-                        const nextArabic = nextLine.match(arabicPattern);
-                        const nextGerman = nextLine.match(germanPattern);
-                        
-                        console.log(`  🔎 Schaue nächste Zeile: "${nextLine}"`);
-                        
-                        // Nächste Zeile hat nur Arabisch
-                        if (nextArabic && !nextGerman) {
-                            arabicWord = nextArabic[0];
-                            console.log(`  ✅ Paar über 2 Zeilen: ${germanWord} + ${arabicWord}`);
-                            
-                            if (germanWord.length >= 2 && arabicWord.length > 0) {
-                                detectedWords.push({ de: germanWord, ar: arabicWord, ex: '' });
-                                console.log(`  ➕ Gespeichert als: ${germanWord} → ${arabicWord}`);
-                            }
-                            i += 2; // Überspringe beide
-                        } else {
-                            console.log(`  ⚠️ Nächste Zeile hat kein passendes Arabisch`);
-                            i++;
-                        }
-                    } else {
-                        console.log(`  ⚠️ Keine weitere Zeile vorhanden`);
-                        i++;
-                    }
-                }
-                // NUR Arabisch - schaue nächste Zeile (UMGEKEHRTE RICHTUNG!)
-                else if (arabicMatches && !germanMatches) {
-                    arabicWord = arabicMatches[0];
-                    
-                    // Prüfe nächste Zeile
-                    if (i + 1 < lines.length) {
-                        const nextLine = lines[i + 1];
-                        const nextGerman = nextLine.match(germanPattern);
-                        const nextArabic = nextLine.match(arabicPattern);
-                        
-                        console.log(`  🔎 Schaue nächste Zeile: "${nextLine}"`);
-                        
-                        // Nächste Zeile hat nur Deutsch
-                        if (nextGerman && !nextArabic) {
-                            germanWord = cleanWord(nextGerman[0]);
-                            console.log(`  ✅ Paar über 2 Zeilen (AR→DE): ${arabicWord} + ${germanWord}`);
-                            
-                            if (germanWord.length >= 2 && arabicWord.length > 0) {
-                                // WICHTIG: Speichere trotzdem als DE→AR!
-                                detectedWords.push({ de: germanWord, ar: arabicWord, ex: '' });
-                                console.log(`  ➕ Gespeichert als: ${germanWord} → ${arabicWord} (umgedreht!)`);
-                            }
-                            i += 2;
-                        } else {
-                            console.log(`  ⚠️ Nächste Zeile hat kein passendes Deutsch`);
-                            i++;
-                        }
-                    } else {
-                        console.log(`  ⚠️ Keine weitere Zeile vorhanden`);
-                        i++;
-                    }
-                }
-                else {
-                    console.log(`  ⚠️ Keine Sprache erkannt, überspringe`);
-                    i++;
-                }
-            }
-            
-            console.log('📊 Wörter vor Filterung:', detectedWords.length);
-            
-            // Filtere ungültige
-            detectedWords = detectedWords.filter(w => {
-                const isValid = w.de && w.de.length >= 2 && w.ar && w.ar.length > 0;
-                if (!isValid) {
-                    console.log(`  ❌ Ungültig:`, w);
-                }
-                return isValid;
-            });
-            
-            console.log('📊 Nach Filterung:', detectedWords.length);
-            
-            // Entferne Duplikate
-            const seen = new Set();
-            const uniqueWords = [];
-            
-            detectedWords.forEach(word => {
-                const key = word.de.toLowerCase() + '|' + word.ar;
-                if (!seen.has(key)) {
-                    seen.add(key);
-                    uniqueWords.push(word);
-                } else {
-                    console.log(`  🔄 Duplikat ignoriert: ${word.de}`);
-                }
-            });
-            
-            console.log('✅ Finale Wörter:', uniqueWords.length);
-            console.log('📋 Liste:', uniqueWords);
-            
-            if (uniqueWords.length === 0) {
-                console.log('⚠️ KEIN WORTPAAR ERKANNT!');
-                console.log('💡 Mögliche Gründe:');
-                console.log('   - Text zu unscharf');
-                console.log('   - Keine klare Trennung zwischen DE/AR');
-                console.log('   - OCR hat nur Müll erkannt');
-                console.log('📝 Zeige dem User den Rohtext in Alert...');
-            }
-            
-            return uniqueWords;
-        }
-        
-        // ===== CLEAN WORD =====
-        function cleanWord(word) {
-            return word
-                .toLowerCase()
-                .trim()
-                .replace(/[^a-zäöüß]/g, '') // Remove special chars
-                .slice(0, 50); // Max length
-        }
-        
-        // ===== UPDATE PROGRESS =====
-        function updateProgress(status, percent, color = 'white') {
-            const statusText = document.getElementById('ocrStatus');
-            const progressBar = document.getElementById('ocrProgressBar');
-            
-            if (statusText) statusText.textContent = status;
-            if (progressBar) {
-                progressBar.style.width = percent + '%';
-                progressBar.style.background = color;
-            }
-        }
-        
-        // ===== HIDE PROGRESS WITH DELAY =====
-        function hideProgressWithDelay() {
-            setTimeout(() => {
-                document.getElementById('ocrProgress').style.display = 'none';
-                document.getElementById('ocrProgressBar').style.width = '0%';
-                document.getElementById('ocrProgressBar').style.background = 'white';
-            }, 2000);
-        }
-        
-        // ===== HANDLE OCR ERROR =====
-        function handleOCRError(error) {
-            console.error('❌ OCR Error:', error);
-            
-            updateProgress('❌ Fehler bei der Erkennung', 100, '#f44336');
-            
-            alert('❌ OCR-Fehler!\n\n' + error.message + '\n\nBitte versuche:\n• Besseres Licht\n• Klareres Foto\n• Oder "Manuell hinzufügen"');
-            
-            hideProgressWithDelay();
-            resetOCRWorkflow();
-        }
-        
-        function addWord() {
-            const de = document.getElementById('germanWord').value.trim();
-            const ar = document.getElementById('arabicWord').value.trim();
-            const ex = document.getElementById('exampleText').value.trim();
-            if (!de || !ar) {
-                alert('⚠️ Deutsch + Arabisch ausfüllen!');
-                return;
-            }
-            pending.push({de, ar, ex});
-            document.getElementById('germanWord').value = '';
-            document.getElementById('arabicWord').value = '';
-            document.getElementById('exampleText').value = '';
-            renderPending();
-        }
-        
-        function removeWord(i) {
-            pending.splice(i, 1);
-            renderPending();
-        }
-        
-        function renderPending() {
-            const cont = document.getElementById('pendingContainer');
-            const list = document.getElementById('pendingList');
-            const count = document.getElementById('pendingCount');
-            
-            if (pending.length === 0) {
-                // VERSTECKEN - mehrere Methoden für absolute Sicherheit
-                cont.classList.add('hidden');
-                cont.style.display = 'none';
-                return;
-            }
-            
-            // ZEIGEN
-            cont.classList.remove('hidden');
-            cont.style.display = 'block';
-            count.textContent = pending.length;
-            list.innerHTML = pending.map((w, i) => `
-                <div class="pending-word">
-                    <div class="pending-word-text">
-                        <strong>${w.de}</strong> → <strong class="ar">${w.ar}</strong>
-                        ${w.ex ? `<div style="font-size: 12px; color: #666; margin-top: 3px;">💡 ${w.ex}</div>` : ''}
-                    </div>
-                    <button class="remove-btn" onclick="removeWord(${i})">×</button>
-                </div>
-            `).join('');
-        }
-        
-        function createCards() {
-            const catId = document.getElementById('targetCat').value;
-            const dir = document.querySelector('input[name="dir"]:checked').value;
-            
-            if (!catId) {
-                alert('⚠️ Bitte Kategorie wählen!');
-                return;
-            }
-            if (pending.length === 0) {
-                alert('⚠️ Keine Wörter zum Erstellen!');
-                return;
-            }
-            
-            let created = 0;
-            pending.forEach(w => {
-                if (dir === 'both' || dir === 'de-ar') {
-                    cards.push({
-                        front: w.de, back: w.ar,
-                        frontLang: 'de', backLang: 'ar',
-                        ex: w.ex, cat: catId
-                    });
-                    created++;
-                }
-                if (dir === 'both' || dir === 'ar-de') {
-                    cards.push({
-                        front: w.ar, back: w.de,
-                        frontLang: 'ar', backLang: 'de',
-                        ex: w.ex, cat: catId
-                    });
-                    created++;
-                }
-            });
-            
-            save();
-            
-            // Pending leeren
-            pending = [];
-            
-            renderPending();
-            renderCategories();
-            
-            const cat = categories.find(c => c.id === catId);
-            alert(`✅ ${created} Karten erstellt!\n\n📂 ${cat.name}\n📊 Gesamt: ${cards.length} Karten\n\nGehe zu Kategorien → ${cat.name}`);
-        }
-        
-        function showCard() {
-            const card = currentCards[currentIdx];
-            const cat = categories.find(c => c.id === currentCat);
-            
-            document.getElementById('learnArea').innerHTML = `
-                <div class="flashcard-container">
-                    <div class="flashcard ${flipped ? 'flipped' : ''}" id="flashcardEl" onclick="flip()">
-                        <div class="flashcard-face flashcard-front">
-                            <div class="flashcard-number">${cat.icon} ${cat.name} - ${currentIdx + 1}/${currentCards.length}</div>
-                            <div class="flashcard-text ${card.frontLang === 'ar' ? 'ar' : ''}" style="text-align: center;">
-                                ${card.front}
-                            </div>
-                            <div class="flashcard-hint">👆 Tap zum Umdrehen</div>
-                        </div>
-                        <div class="flashcard-face flashcard-back">
-                            <div class="flashcard-number">${cat.icon} ${cat.name} - ${currentIdx + 1}/${currentCards.length}</div>
-                            <div class="flashcard-text ${card.backLang === 'ar' ? 'ar' : ''}" style="text-align: center;">
-                                ${card.back}
-                            </div>
-                            ${card.ex ? `<div class="flashcard-example">💡 ${card.ex}</div>` : ''}
-                            <div class="flashcard-hint">👆 Tap zum Zurückdrehen</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-controls">
-                    <button class="btn btn-secondary" onclick="prev()" ${currentIdx === 0 ? 'disabled' : ''}>← Zurück</button>
-                    <button class="btn btn-primary" onclick="next()">Weiter →</button>
-                </div>
-            `;
-        }
-        
-        function flip() {
-            flipped = !flipped;
-            const el = document.getElementById('flashcardEl');
-            if (flipped) {
-                el.classList.add('flipped');
-            } else {
-                el.classList.remove('flipped');
-            }
-        }
-        
-        function next() {
-            if (currentIdx < currentCards.length - 1) {
-                currentIdx++;
-                flipped = false;
-                showCard();
-            } else {
-                alert('🎉 Alle Karten durch!');
-            }
-        }
-        
-        function prev() {
-            if (currentIdx > 0) {
-                currentIdx--;
-                flipped = false;
-                showCard();
-            }
-        }
-        
-        renderCategories();
-        console.log('✅ App gestartet');
-        console.log('📊 Kategorien:', categories.length);
-        console.log('📚 Karten:', cards.length);
-        
-        // Service Worker Registration
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js')
-                    .then(reg => console.log('✅ Service Worker registriert:', reg.scope))
-                    .catch(err => console.log('❌ Service Worker Fehler:', err));
-            });
-        }
-    </script>
+    <!-- Scripts (Order matters!) -->
+    <script src="preprocessing.js"></script>
+    <script src="ocr.js"></script>
+    <script src="pdf-handler.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
