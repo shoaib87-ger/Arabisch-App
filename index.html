@@ -398,21 +398,18 @@
             </div>
             
             <div id="upload" class="content">
-                <!-- Foto Upload Section -->
-                <div class="upload-section">
-                    <h3>⚡ Deine 7 Beispiel-Verben</h3>
-                    <p>Die Wörter aus deinem ursprünglichen Foto</p>
-                    <button class="btn btn-white" onclick="loadPhotoWords()">📸 Beispiel laden</button>
-                </div>
-                
                 <!-- Real Photo Upload mit OCR -->
                 <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px;">
-                    <h3 style="margin-bottom: 10px;">📷 Foto mit OCR erkennen</h3>
-                    <p style="font-size: 13px; opacity: 0.9; margin-bottom: 15px;">Lade ein Foto mit Vokabeln hoch - wird automatisch erkannt!</p>
+                    <h3 style="margin-bottom: 10px;">📷 Foto oder PDF hochladen</h3>
+                    <p style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">Lade ein Foto mit Vokabeln hoch - wird automatisch erkannt!</p>
+                    <p style="font-size: 12px; opacity: 0.8; margin-bottom: 15px;">✅ Unterstützt: JPG, PNG, PDF (mehrere Seiten)</p>
                     
-                    <input type="file" id="photoInput" accept="image/*,application/pdf" capture="environment" style="display: none;" onchange="handlePhotoUpload(this)">
-                    <button class="btn" style="background: white; color: #f5576c; width: 100%;" onclick="document.getElementById('photoInput').click()">
-                        📸 Foto aufnehmen / hochladen
+                    <input type="file" id="photoInput" accept="image/*,application/pdf" style="display: none;" onchange="handlePhotoUpload(this)">
+                    <button class="btn" style="background: white; color: #f5576c; width: 100%; margin-bottom: 10px;" onclick="document.getElementById('photoInput').click()">
+                        📸 Foto aus Galerie wählen
+                    </button>
+                    <button class="btn" style="background: rgba(255,255,255,0.3); color: white; width: 100%;" onclick="openCamera()">
+                        📷 Kamera öffnen
                     </button>
                     
                     <!-- Progress Bar -->
@@ -707,37 +704,14 @@
             showCard();
         }
         
-        function loadPhotoWords() {
-            console.log('loadPhotoWords aufgerufen');
-            
-            // PRÜFUNG: Sind schon Wörter in der Liste?
-            if (pending.length > 0) {
-                const confirm = window.confirm(
-                    `⚠️ Es sind bereits ${pending.length} Wörter in der Liste!\n\n` +
-                    `Möchtest du sie überschreiben?\n\n` +
-                    `OK = Alte Wörter löschen und neue laden\n` +
-                    `Abbrechen = Behalten`
-                );
-                
-                if (!confirm) {
-                    return; // Benutzer will behalten
-                }
-                
-                // Benutzer will überschreiben
-                pending = [];
-            }
-            
-            pending = [
-                {de: 'glauben', ar: 'آمَنَ بِاللّه', ex: 'an Allah'},
-                {de: 'nehmen', ar: 'أَخَذَ هُ', ex: 'etwas'},
-                {de: 'geben', ar: 'أَعْطَى هُ/ه', ex: 'jm. etwas'},
-                {de: 'antworten', ar: 'أَجَابَ هُ', ex: 'jm.'},
-                {de: 'essen', ar: 'أَكَلَ هُ', ex: 'etwas'},
-                {de: 'kaufen', ar: 'اِشْتَرَى هُ', ex: 'etwas'},
-                {de: 'aufwachen', ar: 'اِسْتَيْقَظَ', ex: ''}
-            ];
-            console.log('Pending gefüllt:', pending.length, 'Wörter');
-            renderPending();
+        // ===== CAMERA FUNCTION =====
+        function openCamera() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'environment'; // Rückkamera
+            input.onchange = (e) => handlePhotoUpload(input);
+            input.click();
         }
         
         // ===== OCR WORKFLOW STATE =====
@@ -932,10 +906,22 @@
                     } else if (m.status === 'loading language traineddata') {
                         progressCallback('📚 Lade Deutsch & Arabisch...', 40);
                     }
-                }
+                },
+                errorHandler: err => console.error('Tesseract Error:', err)
+            });
+            
+            // VERBESSERTE OCR-EINSTELLUNGEN
+            await worker.setParameters({
+                tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+                preserve_interword_spaces: '1',
+                tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzäöüßABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ ابتثجحخدذرزسشصضطظعغفقكلمنهويىءآأإةؤئًٌٍَُِّْ',
             });
             
             const { data: { text } } = await worker.recognize(file);
+            
+            console.log('📝 Roher OCR-Text:', text);
+            console.log('📏 Textlänge:', text.length, 'Zeichen');
+            
             await worker.terminate();
             
             return text;
@@ -1001,56 +987,126 @@
         
         // ===== EXTRACT WORDS FROM TEXT =====
         function extractWords(text) {
-            const lines = text.split('\n').filter(line => line.trim().length > 0);
+            console.log('🔍 Starte Wort-Extraktion...');
+            console.log('📄 Original-Text:', text);
             
+            // Bereinige Text
+            const cleanedText = text
+                .replace(/\|/g, ' ')  // Trennzeichen ersetzen
+                .replace(/\s+/g, ' ') // Mehrfache Leerzeichen
+                .trim();
+            
+            const lines = cleanedText.split('\n')
+                .map(l => l.trim())
+                .filter(l => l.length > 0);
+            
+            console.log('📋 Zeilen:', lines);
+            
+            // VERBESSERTE PATTERNS
+            // Arabisch: Alle arabischen Unicode-Bereiche + Tashkeel
             const arabicPattern = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+/g;
-            const germanPattern = /[a-zäöüßA-ZÄÖÜ]+/g;
+            // Deutsch: Buchstaben inkl. Umlaute
+            const germanPattern = /[a-zäöüßA-ZÄÖÜ]{2,}/g;
             
             let detectedWords = [];
+            let i = 0;
             
-            // Process each line
-            for (let i = 0; i < lines.length; i++) {
+            while (i < lines.length) {
                 const line = lines[i];
+                
+                console.log(`📝 Zeile ${i}: "${line}"`);
                 
                 const arabicMatches = line.match(arabicPattern);
                 const germanMatches = line.match(germanPattern);
                 
-                // Both in same line
-                if (arabicMatches && germanMatches) {
+                console.log(`  🇩🇪 Deutsch gefunden:`, germanMatches);
+                console.log(`  🇸🇦 Arabisch gefunden:`, arabicMatches);
+                
+                // METHODE 1: Beide in gleicher Zeile
+                if (arabicMatches && arabicMatches.length > 0 && germanMatches && germanMatches.length > 0) {
+                    console.log('  ✅ Beide Sprachen in Zeile!');
+                    
+                    // Nimm erstes Deutsch, erstes Arabisch
                     const de = cleanWord(germanMatches[0]);
                     const ar = arabicMatches[0];
                     
                     if (de.length >= 2) {
                         detectedWords.push({ de, ar, ex: '' });
+                        console.log(`  ➕ Hinzugefügt: ${de} → ${ar}`);
                     }
+                    
+                    i++;
                 }
-                // Only German - check next line for Arabic
-                else if (germanMatches && i + 1 < lines.length) {
+                // METHODE 2: Nur Deutsch - schaue nächste Zeile
+                else if (germanMatches && germanMatches.length > 0 && i + 1 < lines.length) {
                     const nextLine = lines[i + 1];
                     const nextArabic = nextLine.match(arabicPattern);
                     
-                    if (nextArabic) {
+                    console.log(`  🔎 Nächste Zeile: "${nextLine}"`);
+                    console.log(`  🇸🇦 Arabisch in nächster:`, nextArabic);
+                    
+                    if (nextArabic && nextArabic.length > 0) {
+                        console.log('  ✅ Paar über 2 Zeilen!');
+                        
                         const de = cleanWord(germanMatches[0]);
                         const ar = nextArabic[0];
                         
                         if (de.length >= 2) {
                             detectedWords.push({ de, ar, ex: '' });
+                            console.log(`  ➕ Hinzugefügt: ${de} → ${ar}`);
                         }
-                        i++; // Skip next line
+                        
+                        i += 2; // Überspringe beide Zeilen
+                    } else {
+                        i++;
                     }
+                }
+                // METHODE 3: Nur Arabisch - schaue ob vorherige Zeile Deutsch war
+                else if (arabicMatches && arabicMatches.length > 0 && detectedWords.length > 0) {
+                    const lastWord = detectedWords[detectedWords.length - 1];
+                    
+                    if (!lastWord.ar || lastWord.ar === '') {
+                        console.log('  ✅ Arabisch zur vorherigen Zeile!');
+                        lastWord.ar = arabicMatches[0];
+                        console.log(`  ✏️ Aktualisiert: ${lastWord.de} → ${lastWord.ar}`);
+                    }
+                    
+                    i++;
+                }
+                else {
+                    i++;
                 }
             }
             
-            // Remove duplicates
-            const seen = new Set();
-            detectedWords = detectedWords.filter(word => {
-                const key = word.de + '|' + word.ar;
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
+            // Filtere unvollständige Paare
+            detectedWords = detectedWords.filter(w => {
+                const isValid = w.de && w.de.length >= 2 && w.ar && w.ar.length > 0;
+                if (!isValid) {
+                    console.log(`  ❌ Ungültig:`, w);
+                }
+                return isValid;
             });
             
-            return detectedWords;
+            console.log('📊 Vor Duplikat-Entfernung:', detectedWords.length);
+            
+            // Entferne Duplikate
+            const seen = new Set();
+            const uniqueWords = [];
+            
+            detectedWords.forEach(word => {
+                const key = word.de.toLowerCase() + '|' + word.ar;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueWords.push(word);
+                } else {
+                    console.log(`  🔄 Duplikat entfernt: ${word.de}`);
+                }
+            });
+            
+            console.log('✅ Nach Duplikat-Entfernung:', uniqueWords.length);
+            console.log('📋 Finale Wörter:', uniqueWords);
+            
+            return uniqueWords;
         }
         
         // ===== CLEAN WORD =====
