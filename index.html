@@ -388,10 +388,22 @@
             </div>
             
             <div id="upload" class="content">
+                <!-- Foto Upload Section -->
                 <div class="upload-section">
-                    <h3>⚡ Deine 7 Verben</h3>
-                    <p>Aus deinem hochgeladenen Foto</p>
-                    <button class="btn btn-white" onclick="loadPhotoWords()">📸 Jetzt laden</button>
+                    <h3>⚡ Deine 7 Beispiel-Verben</h3>
+                    <p>Die Wörter aus deinem ursprünglichen Foto</p>
+                    <button class="btn btn-white" onclick="loadPhotoWords()">📸 Beispiel laden</button>
+                </div>
+                
+                <!-- Real Photo Upload -->
+                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 10px;">📷 Neues Foto hochladen</h3>
+                    <p style="font-size: 13px; opacity: 0.9; margin-bottom: 15px;">Lade ein Foto mit Vokabeln hoch</p>
+                    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display: none;" onchange="handlePhotoUpload(this)">
+                    <button class="btn" style="background: white; color: #f5576c; width: 100%;" onclick="document.getElementById('photoInput').click()">
+                        📸 Foto aufnehmen / hochladen
+                    </button>
+                    <p style="font-size: 11px; opacity: 0.8; margin-top: 10px;">💡 Hinweis: OCR-Funktion wird noch entwickelt. Nutze vorerst "Manuell hinzufügen".</p>
                 </div>
                 
                 <div class="word-form">
@@ -672,6 +684,24 @@
         
         function loadPhotoWords() {
             console.log('loadPhotoWords aufgerufen');
+            
+            // PRÜFUNG: Sind schon Wörter in der Liste?
+            if (pending.length > 0) {
+                const confirm = window.confirm(
+                    `⚠️ Es sind bereits ${pending.length} Wörter in der Liste!\n\n` +
+                    `Möchtest du sie überschreiben?\n\n` +
+                    `OK = Alte Wörter löschen und neue laden\n` +
+                    `Abbrechen = Behalten`
+                );
+                
+                if (!confirm) {
+                    return; // Benutzer will behalten
+                }
+                
+                // Benutzer will überschreiben
+                pending = [];
+            }
+            
             pending = [
                 {de: 'glauben', ar: 'آمَنَ بِاللّه', ex: 'an Allah'},
                 {de: 'nehmen', ar: 'أَخَذَ هُ', ex: 'etwas'},
@@ -683,6 +713,49 @@
             ];
             console.log('Pending gefüllt:', pending.length, 'Wörter');
             renderPending();
+        }
+        
+        function handlePhotoUpload(input) {
+            if (!input.files || !input.files[0]) return;
+            
+            const file = input.files[0];
+            
+            console.log('📸 Foto hochgeladen:', file.name);
+            
+            // PRÜFUNG: Sind schon Wörter in der Liste?
+            if (pending.length > 0) {
+                const confirm = window.confirm(
+                    `⚠️ Es sind bereits ${pending.length} Wörter in der Liste!\n\n` +
+                    `Möchtest du sie überschreiben mit dem neuen Foto?\n\n` +
+                    `OK = Alte Wörter löschen\n` +
+                    `Abbrechen = Behalten`
+                );
+                
+                if (!confirm) {
+                    input.value = ''; // Input zurücksetzen
+                    return;
+                }
+                
+                // Benutzer will überschreiben
+                pending = [];
+                renderPending();
+            }
+            
+            // INFO: Hier würde echtes OCR kommen (z.B. Tesseract.js)
+            // Für jetzt: Nutzer informieren
+            alert(
+                '📸 Foto hochgeladen!\n\n' +
+                'ℹ️ OCR-Funktion wird noch entwickelt.\n\n' +
+                'Vorläufig kannst du:\n' +
+                '• Die 7 Beispiel-Verben nutzen\n' +
+                '• Wörter manuell hinzufügen\n\n' +
+                'Tipp: Mache einen Screenshot vom Foto und tippe die Wörter ab!'
+            );
+            
+            // Input zurücksetzen für nächsten Upload
+            input.value = '';
+            
+            console.log('📸 Photo Input zurückgesetzt');
         }
         
         function addWord() {
