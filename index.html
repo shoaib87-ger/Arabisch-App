@@ -12,6 +12,9 @@
     <meta name="apple-mobile-web-app-title" content="Dr. Shoaibs Lern-App">
     <link rel="manifest" href="manifest.json">
     
+    <!-- Tesseract.js for OCR -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -395,15 +398,30 @@
                     <button class="btn btn-white" onclick="loadPhotoWords()">📸 Beispiel laden</button>
                 </div>
                 
-                <!-- Real Photo Upload -->
+                <!-- Real Photo Upload mit OCR -->
                 <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px;">
-                    <h3 style="margin-bottom: 10px;">📷 Neues Foto hochladen</h3>
-                    <p style="font-size: 13px; opacity: 0.9; margin-bottom: 15px;">Lade ein Foto mit Vokabeln hoch</p>
+                    <h3 style="margin-bottom: 10px;">📷 Foto mit OCR erkennen</h3>
+                    <p style="font-size: 13px; opacity: 0.9; margin-bottom: 15px;">Lade ein Foto mit Vokabeln hoch - wird automatisch erkannt!</p>
+                    
                     <input type="file" id="photoInput" accept="image/*" capture="environment" style="display: none;" onchange="handlePhotoUpload(this)">
                     <button class="btn" style="background: white; color: #f5576c; width: 100%;" onclick="document.getElementById('photoInput').click()">
                         📸 Foto aufnehmen / hochladen
                     </button>
-                    <p style="font-size: 11px; opacity: 0.8; margin-top: 10px;">💡 Hinweis: OCR-Funktion wird noch entwickelt. Nutze vorerst "Manuell hinzufügen".</p>
+                    
+                    <!-- Progress Bar -->
+                    <div id="ocrProgress" style="display: none; margin-top: 15px;">
+                        <div style="background: rgba(255,255,255,0.3); border-radius: 10px; padding: 10px; margin-bottom: 10px;">
+                            <div style="font-size: 13px; margin-bottom: 5px;" id="ocrStatus">🔄 Initialisiere OCR...</div>
+                            <div style="background: rgba(255,255,255,0.5); height: 6px; border-radius: 3px; overflow: hidden;">
+                                <div id="ocrProgressBar" style="background: white; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Image Preview -->
+                    <div id="imagePreview" style="display: none; margin-top: 15px;">
+                        <img id="previewImg" style="width: 100%; border-radius: 10px; border: 2px solid white;" />
+                    </div>
                 </div>
                 
                 <div class="word-form">
@@ -732,30 +750,170 @@
                 );
                 
                 if (!confirm) {
-                    input.value = ''; // Input zurücksetzen
+                    input.value = '';
                     return;
                 }
                 
-                // Benutzer will überschreiben
                 pending = [];
                 renderPending();
             }
             
-            // INFO: Hier würde echtes OCR kommen (z.B. Tesseract.js)
-            // Für jetzt: Nutzer informieren
-            alert(
-                '📸 Foto hochgeladen!\n\n' +
-                'ℹ️ OCR-Funktion wird noch entwickelt.\n\n' +
-                'Vorläufig kannst du:\n' +
-                '• Die 7 Beispiel-Verben nutzen\n' +
-                '• Wörter manuell hinzufügen\n\n' +
-                'Tipp: Mache einen Screenshot vom Foto und tippe die Wörter ab!'
-            );
+            // Starte OCR
+            performOCR(file);
+        }
+        
+        async function performOCR(file) {
+            const progressDiv = document.getElementById('ocrProgress');
+            const statusText = document.getElementById('ocrStatus');
+            const progressBar = document.getElementById('ocrProgressBar');
+            const previewDiv = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImg');
             
-            // Input zurücksetzen für nächsten Upload
-            input.value = '';
+            try {
+                // Zeige Preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                    previewDiv.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+                
+                // Zeige Progress
+                progressDiv.style.display = 'block';
+                statusText.textContent = '🔄 Starte OCR...';
+                progressBar.style.width = '10%';
+                
+                // OCR mit Tesseract
+                const worker = await Tesseract.createWorker('deu+ara', 1, {
+                    logger: m => {
+                        console.log(m);
+                        if (m.status === 'recognizing text') {
+                            const progress = Math.round(m.progress * 100);
+                            progressBar.style.width = progress + '%';
+                            statusText.textContent = `🔍 Erkenne Text... ${progress}%`;
+                        } else if (m.status === 'loading tesseract core') {
+                            statusText.textContent = '⬇️ Lade Tesseract...';
+                            progressBar.style.width = '20%';
+                        } else if (m.status === 'initializing tesseract') {
+                            statusText.textContent = '⚙️ Initialisiere...';
+                            progressBar.style.width = '30%';
+                        } else if (m.status === 'loading language traineddata') {
+                            statusText.textContent = '📚 Lade Deutsch & Arabisch...';
+                            progressBar.style.width = '40%';
+                        }
+                    }
+                });
+                
+                const { data: { text } } = await worker.recognize(file);
+                
+                console.log('OCR Rohtext:', text);
+                
+                statusText.textContent = '✅ Text erkannt!';
+                progressBar.style.width = '100%';
+                
+                // Verarbeite den erkannten Text
+                processOCRText(text);
+                
+                await worker.terminate();
+                
+                // Verstecke Progress nach 2 Sekunden
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    progressBar.style.width = '0%';
+                }, 2000);
+                
+                // Input zurücksetzen
+                document.getElementById('photoInput').value = '';
+                
+            } catch (error) {
+                console.error('OCR Fehler:', error);
+                statusText.textContent = '❌ Fehler bei der Erkennung';
+                progressBar.style.width = '100%';
+                progressBar.style.background = '#ff4444';
+                
+                alert('❌ OCR-Fehler!\n\n' + error.message + '\n\nBitte versuche es mit einem klareren Foto oder nutze "Manuell hinzufügen".');
+                
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    progressBar.style.background = 'white';
+                }, 3000);
+            }
+        }
+        
+        function processOCRText(text) {
+            // Teile Text in Zeilen
+            const lines = text.split('\n').filter(line => line.trim().length > 0);
             
-            console.log('📸 Photo Input zurückgesetzt');
+            console.log('OCR Zeilen:', lines);
+            
+            if (lines.length === 0) {
+                alert('⚠️ Kein Text erkannt!\n\nBitte versuche es mit einem klareren Foto.');
+                return;
+            }
+            
+            // Versuche Deutsch-Arabisch Paare zu finden
+            // Format: "deutsches_wort arabisches_wort" oder Zeile für Zeile
+            
+            let detectedWords = [];
+            
+            // Methode 1: Suche nach gemischten Zeilen (Deutsch + Arabisch)
+            const arabicPattern = /[\u0600-\u06FF]+/;
+            const germanPattern = /[a-zäöüß]+/i;
+            
+            lines.forEach(line => {
+                const hasArabic = arabicPattern.test(line);
+                const hasGerman = germanPattern.test(line);
+                
+                if (hasArabic && hasGerman) {
+                    // Beide Sprachen in einer Zeile
+                    const germanMatch = line.match(germanPattern);
+                    const arabicMatch = line.match(arabicPattern);
+                    
+                    if (germanMatch && arabicMatch) {
+                        detectedWords.push({
+                            de: germanMatch[0].toLowerCase(),
+                            ar: arabicMatch[0],
+                            ex: ''
+                        });
+                    }
+                } else if (hasGerman) {
+                    // Nur Deutsch - speichere für nächste Zeile
+                    detectedWords.push({
+                        de: line.trim().toLowerCase(),
+                        ar: '',
+                        ex: ''
+                    });
+                } else if (hasArabic && detectedWords.length > 0) {
+                    // Nur Arabisch - füge zur letzten Zeile hinzu
+                    const lastWord = detectedWords[detectedWords.length - 1];
+                    if (!lastWord.ar) {
+                        lastWord.ar = line.trim();
+                    }
+                }
+            });
+            
+            // Filtere nur vollständige Paare
+            detectedWords = detectedWords.filter(w => w.de && w.ar);
+            
+            console.log('Erkannte Wörter:', detectedWords);
+            
+            if (detectedWords.length === 0) {
+                alert(
+                    '⚠️ Keine Wortpaare erkannt!\n\n' +
+                    'OCR konnte den Text lesen, aber keine Deutsch-Arabisch Paare finden.\n\n' +
+                    'Erkannter Text wird in der Console angezeigt.\n\n' +
+                    'Nutze "Manuell hinzufügen" um die Wörter einzutragen.'
+                );
+                console.log('Vollständiger OCR-Text:', text);
+                return;
+            }
+            
+            // Füge erkannte Wörter zu pending hinzu
+            pending = pending.concat(detectedWords);
+            renderPending();
+            
+            alert(`✅ ${detectedWords.length} Wortpaar${detectedWords.length > 1 ? 'e' : ''} erkannt!\n\nPrüfe die Liste und wähle dann eine Kategorie.`);
         }
         
         function addWord() {
