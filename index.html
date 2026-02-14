@@ -958,15 +958,32 @@
             console.log('📋 Extracted words:', words);
             
             if (words.length === 0) {
-                updateProgress('⚠️ Keine Wörter erkannt', 100, '#ff9800');
+                updateProgress('⚠️ Keine Wortpaare erkannt', 100, '#ff9800');
                 
                 setTimeout(() => {
+                    // Zeige OCR-Text im Alert
+                    const preview = text.substring(0, 300);
+                    const hasMore = text.length > 300;
+                    
                     alert(
                         '⚠️ Keine Wortpaare erkannt!\n\n' +
-                        'OCR hat Text gefunden, aber keine Deutsch-Arabisch Paare.\n\n' +
-                        'Erkannter Text wurde in der Console ausgegeben.\n\n' +
-                        'Nutze "Manuell hinzufügen".'
+                        'OCR hat folgenden Text erkannt:\n\n' +
+                        '━━━━━━━━━━━━━━━━━━━━\n' +
+                        preview + (hasMore ? '...' : '') + '\n' +
+                        '━━━━━━━━━━━━━━━━━━━━\n\n' +
+                        'Mögliche Gründe:\n' +
+                        '• Text zu unscharf/verwackelt\n' +
+                        '• Keine klare DE-AR Trennung\n' +
+                        '• Schlechtes Licht\n\n' +
+                        '💡 Tipp:\n' +
+                        '• Besseres Foto machen\n' +
+                        '• Oder "Manuell hinzufügen" nutzen\n\n' +
+                        '🔍 Vollständiger Text in Browser-Console (F12)'
                     );
+                    console.log('📄 VOLLSTÄNDIGER OCR-TEXT:');
+                    console.log('━'.repeat(50));
+                    console.log(text);
+                    console.log('━'.repeat(50));
                     hideProgressWithDelay();
                 }, 1000);
                 
@@ -993,6 +1010,7 @@
             // Bereinige Text
             const cleanedText = text
                 .replace(/\|/g, ' ')  // Trennzeichen ersetzen
+                .replace(/[→←]/g, ' ') // Pfeile ersetzen
                 .replace(/\s+/g, ' ') // Mehrfache Leerzeichen
                 .trim();
             
@@ -1000,12 +1018,10 @@
                 .map(l => l.trim())
                 .filter(l => l.length > 0);
             
-            console.log('📋 Zeilen:', lines);
+            console.log('📋 Zeilen gefunden:', lines.length);
             
             // VERBESSERTE PATTERNS
-            // Arabisch: Alle arabischen Unicode-Bereiche + Tashkeel
             const arabicPattern = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+/g;
-            // Deutsch: Buchstaben inkl. Umlaute
             const germanPattern = /[a-zäöüßA-ZÄÖÜ]{2,}/g;
             
             let detectedWords = [];
@@ -1014,71 +1030,102 @@
             while (i < lines.length) {
                 const line = lines[i];
                 
-                console.log(`📝 Zeile ${i}: "${line}"`);
+                console.log(`📝 Zeile ${i + 1}/${lines.length}: "${line}"`);
                 
                 const arabicMatches = line.match(arabicPattern);
                 const germanMatches = line.match(germanPattern);
                 
-                console.log(`  🇩🇪 Deutsch gefunden:`, germanMatches);
-                console.log(`  🇸🇦 Arabisch gefunden:`, arabicMatches);
+                console.log(`  🇩🇪 Deutsch:`, germanMatches);
+                console.log(`  🇸🇦 Arabisch:`, arabicMatches);
                 
-                // METHODE 1: Beide in gleicher Zeile
-                if (arabicMatches && arabicMatches.length > 0 && germanMatches && germanMatches.length > 0) {
-                    console.log('  ✅ Beide Sprachen in Zeile!');
+                let germanWord = null;
+                let arabicWord = null;
+                
+                // BEIDE in gleicher Zeile
+                if (germanMatches && arabicMatches) {
+                    germanWord = cleanWord(germanMatches[0]);
+                    arabicWord = arabicMatches[0];
                     
-                    // Nimm erstes Deutsch, erstes Arabisch
-                    const de = cleanWord(germanMatches[0]);
-                    const ar = arabicMatches[0];
+                    console.log(`  ✅ Beide gefunden: ${germanWord} ↔ ${arabicWord}`);
                     
-                    if (de.length >= 2) {
-                        detectedWords.push({ de, ar, ex: '' });
-                        console.log(`  ➕ Hinzugefügt: ${de} → ${ar}`);
+                    if (germanWord.length >= 2 && arabicWord.length > 0) {
+                        detectedWords.push({ de: germanWord, ar: arabicWord, ex: '' });
+                        console.log(`  ➕ Gespeichert als: ${germanWord} → ${arabicWord}`);
                     }
-                    
                     i++;
                 }
-                // METHODE 2: Nur Deutsch - schaue nächste Zeile
-                else if (germanMatches && germanMatches.length > 0 && i + 1 < lines.length) {
-                    const nextLine = lines[i + 1];
-                    const nextArabic = nextLine.match(arabicPattern);
+                // NUR Deutsch - schaue nächste Zeile
+                else if (germanMatches && !arabicMatches) {
+                    germanWord = cleanWord(germanMatches[0]);
                     
-                    console.log(`  🔎 Nächste Zeile: "${nextLine}"`);
-                    console.log(`  🇸🇦 Arabisch in nächster:`, nextArabic);
-                    
-                    if (nextArabic && nextArabic.length > 0) {
-                        console.log('  ✅ Paar über 2 Zeilen!');
+                    // Prüfe nächste Zeile
+                    if (i + 1 < lines.length) {
+                        const nextLine = lines[i + 1];
+                        const nextArabic = nextLine.match(arabicPattern);
+                        const nextGerman = nextLine.match(germanPattern);
                         
-                        const de = cleanWord(germanMatches[0]);
-                        const ar = nextArabic[0];
+                        console.log(`  🔎 Schaue nächste Zeile: "${nextLine}"`);
                         
-                        if (de.length >= 2) {
-                            detectedWords.push({ de, ar, ex: '' });
-                            console.log(`  ➕ Hinzugefügt: ${de} → ${ar}`);
+                        // Nächste Zeile hat nur Arabisch
+                        if (nextArabic && !nextGerman) {
+                            arabicWord = nextArabic[0];
+                            console.log(`  ✅ Paar über 2 Zeilen: ${germanWord} + ${arabicWord}`);
+                            
+                            if (germanWord.length >= 2 && arabicWord.length > 0) {
+                                detectedWords.push({ de: germanWord, ar: arabicWord, ex: '' });
+                                console.log(`  ➕ Gespeichert als: ${germanWord} → ${arabicWord}`);
+                            }
+                            i += 2; // Überspringe beide
+                        } else {
+                            console.log(`  ⚠️ Nächste Zeile hat kein passendes Arabisch`);
+                            i++;
                         }
-                        
-                        i += 2; // Überspringe beide Zeilen
                     } else {
+                        console.log(`  ⚠️ Keine weitere Zeile vorhanden`);
                         i++;
                     }
                 }
-                // METHODE 3: Nur Arabisch - schaue ob vorherige Zeile Deutsch war
-                else if (arabicMatches && arabicMatches.length > 0 && detectedWords.length > 0) {
-                    const lastWord = detectedWords[detectedWords.length - 1];
+                // NUR Arabisch - schaue nächste Zeile (UMGEKEHRTE RICHTUNG!)
+                else if (arabicMatches && !germanMatches) {
+                    arabicWord = arabicMatches[0];
                     
-                    if (!lastWord.ar || lastWord.ar === '') {
-                        console.log('  ✅ Arabisch zur vorherigen Zeile!');
-                        lastWord.ar = arabicMatches[0];
-                        console.log(`  ✏️ Aktualisiert: ${lastWord.de} → ${lastWord.ar}`);
+                    // Prüfe nächste Zeile
+                    if (i + 1 < lines.length) {
+                        const nextLine = lines[i + 1];
+                        const nextGerman = nextLine.match(germanPattern);
+                        const nextArabic = nextLine.match(arabicPattern);
+                        
+                        console.log(`  🔎 Schaue nächste Zeile: "${nextLine}"`);
+                        
+                        // Nächste Zeile hat nur Deutsch
+                        if (nextGerman && !nextArabic) {
+                            germanWord = cleanWord(nextGerman[0]);
+                            console.log(`  ✅ Paar über 2 Zeilen (AR→DE): ${arabicWord} + ${germanWord}`);
+                            
+                            if (germanWord.length >= 2 && arabicWord.length > 0) {
+                                // WICHTIG: Speichere trotzdem als DE→AR!
+                                detectedWords.push({ de: germanWord, ar: arabicWord, ex: '' });
+                                console.log(`  ➕ Gespeichert als: ${germanWord} → ${arabicWord} (umgedreht!)`);
+                            }
+                            i += 2;
+                        } else {
+                            console.log(`  ⚠️ Nächste Zeile hat kein passendes Deutsch`);
+                            i++;
+                        }
+                    } else {
+                        console.log(`  ⚠️ Keine weitere Zeile vorhanden`);
+                        i++;
                     }
-                    
-                    i++;
                 }
                 else {
+                    console.log(`  ⚠️ Keine Sprache erkannt, überspringe`);
                     i++;
                 }
             }
             
-            // Filtere unvollständige Paare
+            console.log('📊 Wörter vor Filterung:', detectedWords.length);
+            
+            // Filtere ungültige
             detectedWords = detectedWords.filter(w => {
                 const isValid = w.de && w.de.length >= 2 && w.ar && w.ar.length > 0;
                 if (!isValid) {
@@ -1087,7 +1134,7 @@
                 return isValid;
             });
             
-            console.log('📊 Vor Duplikat-Entfernung:', detectedWords.length);
+            console.log('📊 Nach Filterung:', detectedWords.length);
             
             // Entferne Duplikate
             const seen = new Set();
@@ -1099,12 +1146,21 @@
                     seen.add(key);
                     uniqueWords.push(word);
                 } else {
-                    console.log(`  🔄 Duplikat entfernt: ${word.de}`);
+                    console.log(`  🔄 Duplikat ignoriert: ${word.de}`);
                 }
             });
             
-            console.log('✅ Nach Duplikat-Entfernung:', uniqueWords.length);
-            console.log('📋 Finale Wörter:', uniqueWords);
+            console.log('✅ Finale Wörter:', uniqueWords.length);
+            console.log('📋 Liste:', uniqueWords);
+            
+            if (uniqueWords.length === 0) {
+                console.log('⚠️ KEIN WORTPAAR ERKANNT!');
+                console.log('💡 Mögliche Gründe:');
+                console.log('   - Text zu unscharf');
+                console.log('   - Keine klare Trennung zwischen DE/AR');
+                console.log('   - OCR hat nur Müll erkannt');
+                console.log('📝 Zeige dem User den Rohtext in Alert...');
+            }
             
             return uniqueWords;
         }
