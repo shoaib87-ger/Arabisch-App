@@ -1,6 +1,6 @@
 /**
- * app.js — Hauptlogik: State-Management, UI, Kategorien, Karteikarten
- * Redesign: Swipe-Gesten, farbkodierte Toasts, Drag & Drop, Kategorie-Farben
+ * app.js — Hauptlogik: State, UI, Kapitel, Karteikarten, Lernmodus-Auswahl
+ * Integriert Quiz-Engine und Statistik-Modul
  */
 
 // ===== STATE =====
@@ -36,13 +36,12 @@ const Storage = {
             ];
             AppState.cards = JSON.parse(localStorage.getItem('cards')) || [];
 
-            // Pending aus sessionStorage wiederherstellen
             const savedPending = sessionStorage.getItem('pending');
             if (savedPending) {
                 AppState.pending = JSON.parse(savedPending);
             }
 
-            console.log(`📊 Geladen: ${AppState.categories.length} Kategorien, ${AppState.cards.length} Karten, ${AppState.pending.length} Pending`);
+            console.log(`📊 Geladen: ${AppState.categories.length} Kapitel, ${AppState.cards.length} Karten, ${AppState.pending.length} Pending`);
         } catch (e) {
             console.error('❌ Storage Load Error:', e);
         }
@@ -52,11 +51,10 @@ const Storage = {
         try {
             localStorage.setItem('cats', JSON.stringify(AppState.categories));
             localStorage.setItem('cards', JSON.stringify(AppState.cards));
-            console.log(`💾 Gespeichert: ${AppState.cards.length} Karten, ${AppState.categories.length} Kategorien`);
         } catch (e) {
             console.error('❌ Storage Save Error:', e);
             if (e.name === 'QuotaExceededError') {
-                showToast('⚠️ Speicher voll! Lösche alte Kategorien.', 'warning');
+                showToast('⚠️ Speicher voll! Lösche alte Kapitel.', 'warning');
             }
         }
     },
@@ -75,7 +73,7 @@ const Storage = {
     }
 };
 
-// ===== TOAST NOTIFICATION (Farbkodiert) =====
+// ===== TOAST =====
 let toastTimeout = null;
 function showToast(message, type = 'info', duration = 2800) {
     let toast = document.getElementById('toast');
@@ -86,23 +84,18 @@ function showToast(message, type = 'info', duration = 2800) {
         document.body.appendChild(toast);
     }
 
-    // Detect type from emoji if not explicitly provided
     if (type === 'info') {
         if (message.startsWith('✅') || message.startsWith('🎉')) type = 'success';
         else if (message.startsWith('⚠️')) type = 'warning';
         else if (message.startsWith('❌')) type = 'error';
-        else if (message.startsWith('📭') || message.startsWith('🗑️')) type = 'info';
     }
 
-    // Set content with progress bar
     toast.innerHTML = `
         <span>${message}</span>
         <div class="toast-progress" style="animation-duration: ${duration}ms;"></div>
     `;
 
-    // Reset classes
     toast.className = 'toast';
-
     if (toastTimeout) clearTimeout(toastTimeout);
 
     requestAnimationFrame(() => {
@@ -124,15 +117,32 @@ function switchTab(tabName) {
     if (contentEl) contentEl.classList.add('active');
 
     if (tabName === 'categories') renderCategories();
+    if (tabName === 'stats') Stats.render(AppState.categories, AppState.cards);
+    if (tabName === 'learn') {
+        // If no category selected, show empty state
+        if (!AppState.currentCat) {
+            const learnArea = document.getElementById('learnArea');
+            learnArea.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🎯</div>
+                    <p>Wähle ein Kapitel<br>und starte eine Lernsession!</p>
+                </div>
+            `;
+        }
+    }
 }
 
-// ===== CATEGORY MANAGEMENT =====
+// ===== KAPITEL MANAGEMENT =====
 function renderCategories() {
     const grid = document.getElementById('categoryGrid');
     const sel = document.getElementById('targetCat');
 
     grid.innerHTML = AppState.categories.map(cat => {
         const count = AppState.cards.filter(c => c.cat === cat.id).length;
+        const prog = Stats.getChapterProgress(cat.id, AppState.cards);
+        const circumference = 2 * Math.PI * 14;
+        const offset = circumference - (prog.pct / 100) * circumference;
+
         return `
             <div class="category-card" onclick="selectCat('${cat.id}')">
                 <div class="category-actions" onclick="event.stopPropagation()">
@@ -140,8 +150,19 @@ function renderCategories() {
                     <button class="icon-btn delete" onclick="deleteCategory('${cat.id}')" aria-label="Löschen">🗑️</button>
                 </div>
                 <div class="category-icon">${cat.icon}</div>
-                <div class="category-name">${cat.name}</div>
+                <div class="category-name">${escapeHtml(cat.name)}</div>
                 <div class="category-count">${count} Karten</div>
+                ${count > 0 ? `
+                    <div class="category-progress">
+                        <svg class="progress-ring" viewBox="0 0 36 36">
+                            <circle class="progress-ring-bg" cx="18" cy="18" r="14" />
+                            <circle class="progress-ring-fill" cx="18" cy="18" r="14"
+                                stroke-dasharray="${circumference}"
+                                stroke-dashoffset="${offset}" />
+                        </svg>
+                        <div class="category-progress-text">${prog.pct}%</div>
+                    </div>
+                ` : ''}
             </div>
         `;
     }).join('');
@@ -232,20 +253,83 @@ function deleteCategory(catId) {
     showToast(`🗑️ "${cat.name}" gelöscht`, 'info');
 }
 
+// ===== KAPITEL AUSWÄHLEN → LERNMODUS =====
 function selectCat(id) {
     AppState.currentCat = id;
     AppState.currentCards = AppState.cards.filter(c => c.cat === id);
     AppState.currentIdx = 0;
     AppState.flipped = false;
+
     if (AppState.currentCards.length === 0) {
-        showToast('📭 Keine Karten in dieser Kategorie', 'info');
+        showToast('📭 Keine Karten in diesem Kapitel', 'info');
         return;
     }
+
+    // Switch to learn tab and show mode selection
     switchTab('learn');
+    showLearnModes();
+}
+
+// ===== LERNMODUS AUSWAHL =====
+function showLearnModes() {
+    const cat = AppState.categories.find(c => c.id === AppState.currentCat);
+    if (!cat) return;
+
+    const cardCount = AppState.currentCards.length;
+    const prog = Stats.getChapterProgress(cat.id, AppState.cards);
+    const hasEnoughForQuiz = cardCount >= 4; // Need 4+ for good distractors
+
+    const learnArea = document.getElementById('learnArea');
+    learnArea.innerHTML = `
+        <div class="learn-chapter-header">
+            <button class="back-btn" onclick="switchTab('categories')">←</button>
+            <h3>${cat.icon} ${escapeHtml(cat.name)}</h3>
+        </div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+            ${cardCount} Karten · ${prog.pct}% gemeistert
+        </p>
+
+        <div class="learn-mode-grid">
+            <div class="learn-mode-card" onclick="startFlashcards()">
+                <div class="learn-mode-icon">🃏</div>
+                <div class="learn-mode-info">
+                    <h4>Karteikarten</h4>
+                    <p>Klassisch: Karte umdrehen und lernen</p>
+                </div>
+            </div>
+
+            <div class="learn-mode-card ${!hasEnoughForQuiz ? 'disabled' : ''}"
+                 onclick="${hasEnoughForQuiz ? "startQuiz('de-ar')" : ''}">
+                <div class="learn-mode-icon">📝</div>
+                <div class="learn-mode-info">
+                    <h4>Quiz: Deutsch → Arabisch</h4>
+                    <p>${hasEnoughForQuiz ? 'Multiple Choice mit 4 Antworten' : '⚠️ Min. 4 Karten nötig'}</p>
+                </div>
+            </div>
+
+            <div class="learn-mode-card ${!hasEnoughForQuiz ? 'disabled' : ''}"
+                 onclick="${hasEnoughForQuiz ? "startQuiz('ar-de')" : ''}">
+                <div class="learn-mode-icon">🔤</div>
+                <div class="learn-mode-info">
+                    <h4>Quiz: Arabisch → Deutsch</h4>
+                    <p>${hasEnoughForQuiz ? 'Arabisches Wort erkennen' : '⚠️ Min. 4 Karten nötig'}</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function startFlashcards() {
+    AppState.currentIdx = 0;
+    AppState.flipped = false;
     showCard();
 }
 
-// ===== ICON PICKER HELPERS =====
+function startQuiz(direction) {
+    QuizEngine.start(AppState.currentCat, direction);
+}
+
+// ===== ICON PICKER =====
 function renderIconPicker(containerId, selectedIcon, onClickFn) {
     const picker = document.getElementById(containerId);
     picker.innerHTML = ICONS.map(icon => `
@@ -267,7 +351,7 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
 }
 
-// ===== UPLOAD & OCR WORKFLOW =====
+// ===== UPLOAD & OCR =====
 function openCamera() {
     const input = document.createElement('input');
     input.type = 'file';
@@ -289,9 +373,7 @@ async function handleUpload(input) {
     }
 
     const file = input.files[0];
-    console.log('📁 Datei:', file.name, 'Typ:', file.type, 'Größe:', (file.size / 1024).toFixed(1) + ' KB');
 
-    // Warnung wenn Pending voll
     if (AppState.pending.length > 0) {
         if (!confirm(`${AppState.pending.length} Wörter bereits in der Liste.\n\nÜberschreiben?\n\nOK = Löschen\nAbbrechen = Behalten`)) {
             input.value = '';
@@ -317,36 +399,26 @@ async function handleUpload(input) {
         showToast('❌ ' + error.message, 'error');
     } finally {
         AppState.isProcessing = false;
-        input.value = ''; // File input reset
+        input.value = '';
     }
 }
 
 async function processImage(file) {
     showProgress();
     updateProgress('🔧 Bild wird optimiert...', 10);
-
-    // 1. Dual-Pipeline Preprocessing
     const { originalBlob, processedBlob, thumbnail } = await ImagePreprocessor.process(file);
-
-    // 2. Preview anzeigen
     showPreview(thumbnail);
-
-    // 3. OCR ausführen
     const words = await performOCR(originalBlob, processedBlob, (status, pct) => updateProgress(status, pct));
-
-    // 4. Ergebnisse verarbeiten
     handleOCRResults(words);
 }
 
 async function processPdf(file) {
     showProgress();
-
     const { words, thumbnail } = await PdfHandler.process(
         file,
         (status, pct) => updateProgress(status, pct),
         async (blob) => await performOCR(blob, () => { })
     );
-
     if (thumbnail) showPreview(thumbnail);
     handleOCRResults(words);
 }
@@ -354,7 +426,7 @@ async function processPdf(file) {
 function handleOCRResults(words) {
     if (!words || words.length === 0) {
         updateProgress('⚠️ Keine Wortpaare erkannt', 100, 'warning');
-        showToast('⚠️ Keine Wortpaare erkannt. Versuche ein besseres Foto.', 'warning');
+        showToast('⚠️ Keine Wortpaare erkannt.', 'warning');
         hideProgressDelayed();
         return;
     }
@@ -369,8 +441,7 @@ function handleOCRResults(words) {
 
 // ===== PROGRESS UI =====
 function showProgress() {
-    const container = document.getElementById('progressContainer');
-    container.classList.add('visible');
+    document.getElementById('progressContainer').classList.add('visible');
 }
 
 function updateProgress(status, percent, type = 'normal') {
@@ -379,17 +450,16 @@ function updateProgress(status, percent, type = 'normal') {
     if (statusEl) statusEl.textContent = status;
     if (barEl) {
         barEl.style.width = percent + '%';
-        if (type === 'success') barEl.style.background = 'var(--gradient-success)';
+        if (type === 'success') barEl.style.background = 'var(--success)';
         else if (type === 'warning') barEl.style.background = 'var(--warning)';
         else if (type === 'danger') barEl.style.background = 'var(--danger)';
-        else barEl.style.background = 'var(--gradient-primary)';
+        else barEl.style.background = 'var(--gradient-gold)';
     }
 }
 
 function hideProgressDelayed() {
     setTimeout(() => {
-        const container = document.getElementById('progressContainer');
-        container.classList.remove('visible');
+        document.getElementById('progressContainer').classList.remove('visible');
         updateProgress('', 0);
     }, 3000);
 }
@@ -460,7 +530,7 @@ function createCards() {
     const catId = document.getElementById('targetCat').value;
     const dir = document.querySelector('input[name="dir"]:checked').value;
 
-    if (!catId) { showToast('⚠️ Kategorie wählen!', 'warning'); return; }
+    if (!catId) { showToast('⚠️ Kapitel wählen!', 'warning'); return; }
     if (AppState.pending.length === 0) { showToast('⚠️ Keine Wörter vorhanden!', 'warning'); return; }
 
     let created = 0;
@@ -469,7 +539,8 @@ function createCards() {
             AppState.cards.push({
                 front: w.de, back: w.ar,
                 frontLang: 'de', backLang: 'ar',
-                ex: w.ex, cat: catId
+                ex: w.ex, cat: catId,
+                score: 0, correctCount: 0, wrongCount: 0, lastSeen: null
             });
             created++;
         }
@@ -477,15 +548,14 @@ function createCards() {
             AppState.cards.push({
                 front: w.ar, back: w.de,
                 frontLang: 'ar', backLang: 'de',
-                ex: w.ex, cat: catId
+                ex: w.ex, cat: catId,
+                score: 0, correctCount: 0, wrongCount: 0, lastSeen: null
             });
             created++;
         }
     });
 
     Storage.save();
-
-    // === VOLLSTÄNDIGER RESET ===
     fullReset();
 
     const cat = AppState.categories.find(c => c.id === catId);
@@ -493,50 +563,44 @@ function createCards() {
     renderCategories();
 }
 
-// ===== FULL RESET =====
 function fullReset() {
-    console.log('🧹 Vollständiger Reset...');
-
-    // 1. Pending leeren
     Storage.clearPending();
-
-    // 2. Preview-URL freigeben
     if (AppState.previewURL) {
         URL.revokeObjectURL(AppState.previewURL);
         AppState.previewURL = null;
     }
-
-    // 3. Processing-Flag
     AppState.isProcessing = false;
-
-    // 4. File Input
     const input = document.getElementById('fileInput');
     if (input) input.value = '';
-
-    // 5. UI zurücksetzen
     hidePreview();
     hideProgressDelayed();
     renderPending();
-
-    console.log('✅ Reset abgeschlossen');
 }
 
-// ===== FLASHCARD LEARNING (mit Swipe) =====
+// ===== FLASHCARD LEARNING =====
 function showCard() {
     const card = AppState.currentCards[AppState.currentIdx];
     const cat = AppState.categories.find(c => c.id === AppState.currentCat);
     if (!card || !cat) return;
 
+    // Track flashcard activity
+    Stats.trackActivity('flashcard');
+    Stats.checkGoalMet();
+
     document.getElementById('learnArea').innerHTML = `
+        <div class="learn-chapter-header">
+            <button class="back-btn" onclick="showLearnModes()">←</button>
+            <h3>${cat.icon} ${escapeHtml(cat.name)} — Karteikarten</h3>
+        </div>
         <div class="flashcard-container" id="flashcardContainer">
             <div class="flashcard ${AppState.flipped ? 'flipped' : ''}" id="flashcardEl" onclick="flipCard()">
                 <div class="flashcard-face flashcard-front">
-                    <div class="flashcard-number">${cat.icon} ${escapeHtml(cat.name)} — ${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
+                    <div class="flashcard-number">${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
                     <div class="flashcard-text ${card.frontLang === 'ar' ? 'ar' : ''}">${escapeHtml(card.front)}</div>
                     <div class="flashcard-hint">👆 Tap zum Umdrehen · ← → Wischen</div>
                 </div>
                 <div class="flashcard-face flashcard-back">
-                    <div class="flashcard-number">${cat.icon} ${escapeHtml(cat.name)} — ${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
+                    <div class="flashcard-number">${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
                     <div class="flashcard-text ${card.backLang === 'ar' ? 'ar' : ''}">${escapeHtml(card.back)}</div>
                     ${card.ex ? `<div class="flashcard-example">💡 ${escapeHtml(card.ex)}</div>` : ''}
                     <div class="flashcard-hint">👆 Tap zum Zurückdrehen</div>
@@ -549,7 +613,6 @@ function showCard() {
         </div>
     `;
 
-    // Attach swipe listeners
     setupSwipeListeners();
 }
 
@@ -617,7 +680,6 @@ function setupSwipeListeners() {
         const dx = e.touches[0].clientX - startX;
         const dy = e.touches[0].clientY - startY;
 
-        // Only horizontal swipes
         if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 15) {
             const el = document.getElementById('flashcardEl');
             if (el && !AppState.flipped) {
@@ -645,13 +707,10 @@ function setupSwipeListeners() {
         const swipeThreshold = 80;
 
         if (dx < -swipeThreshold) {
-            // Swipe left → next card
             nextCard();
         } else if (dx > swipeThreshold) {
-            // Swipe right → previous card
             prevCard();
         } else {
-            // Snap back
             if (el) {
                 el.style.transform = AppState.flipped ? 'rotateY(180deg)' : '';
             }
@@ -679,8 +738,7 @@ function setupDragDrop() {
         hero.classList.remove('drag-over');
         const files = e.dataTransfer.files;
         if (files && files.length > 0) {
-            const fakeInput = { files: files, value: '' };
-            fakeInput.value = files[0].name; // Simulate for reset
+            const fakeInput = { files: files, value: files[0].name };
             handleUpload(fakeInput);
         }
     });
@@ -699,21 +757,20 @@ function escapeHtml(str) {
 // ===== INIT =====
 function initApp() {
     Storage.load();
+    Stats.load();
     renderCategories();
     renderPending();
     setupDragDrop();
 
-    // Register Service Worker
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js')
             .then(reg => {
                 console.log('✅ Service Worker registriert');
-                // Sofort updaten wenn neue Version vorhanden
                 reg.addEventListener('updatefound', () => {
                     const newWorker = reg.installing;
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'activated') {
-                            showToast('🔄 App aktualisiert! Bitte neu laden.', 'info');
+                            showToast('🔄 App aktualisiert!', 'info');
                         }
                     });
                 });
@@ -722,8 +779,7 @@ function initApp() {
     }
 
     console.log('✅ App gestartet');
-    console.log(`📊 ${AppState.categories.length} Kategorien, ${AppState.cards.length} Karten`);
+    console.log(`📊 ${AppState.categories.length} Kapitel, ${AppState.cards.length} Karten`);
 }
 
-// Start
 document.addEventListener('DOMContentLoaded', initApp);

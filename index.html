@@ -7,23 +7,21 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Dr. Shoaibs Lern-App</title>
 
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#00b4d8">
+    <!-- PWA -->
+    <meta name="theme-color" content="#c8952e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Lern-App">
-    <meta name="description" content="Deutsch-Arabisch Lernkarten mit OCR">
+    <meta name="description" content="Deutsch-Arabisch Lernkarten mit OCR & Quiz">
     <link rel="manifest" href="manifest.json">
 
-    <!-- Fonts: Preconnect for fast loading -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Inter (Primary UI) + Arabic Fonts -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&display=swap"
         rel="stylesheet">
 
-    <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
 
     <!-- PDF.js -->
@@ -32,7 +30,7 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
 
-    <!-- Tesseract.js (Fallback) -->
+    <!-- Tesseract.js -->
     <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 
@@ -44,50 +42,43 @@
             <p>Deutsch ↔ Arabisch</p>
         </div>
 
-        <!-- Tab Bar (Top) -->
+        <!-- Tab Bar -->
         <div class="tab-bar">
-            <div class="tab active" data-tab="categories" onclick="switchTab('categories')">📂 Kategorien</div>
+            <div class="tab active" data-tab="categories" onclick="switchTab('categories')">📖 Kapitel</div>
             <div class="tab" data-tab="upload" onclick="switchTab('upload')">📤 Upload</div>
-            <div class="tab" data-tab="learn" onclick="switchTab('learn')">📚 Lernen</div>
+            <div class="tab" data-tab="learn" onclick="switchTab('learn')">🎯 Lernen</div>
+            <div class="tab" data-tab="stats" onclick="switchTab('stats')">📊 Statistik</div>
         </div>
 
-        <!-- ===== KATEGORIEN TAB ===== -->
+        <!-- ===== KAPITEL TAB ===== -->
         <div id="categories" class="content active">
-            <button class="btn btn-primary btn-small mb-md" onclick="openNewCatModal()">+ Neue Kategorie</button>
+            <button class="btn btn-primary btn-small mb-md" onclick="openNewCatModal()">+ Neues Kapitel</button>
             <div id="categoryGrid" class="category-grid"></div>
         </div>
 
         <!-- ===== UPLOAD TAB ===== -->
         <div id="upload" class="content">
-            <!-- Upload Hero -->
             <div class="upload-hero" id="uploadHero">
                 <h3>📷 Foto oder PDF hochladen</h3>
                 <p class="subtitle">Lade ein Foto mit Vokabeln hoch — wird automatisch erkannt!<br>✅ JPG, PNG, PDF
                     (mehrere Seiten)</p>
-
                 <input type="file" id="fileInput" accept="image/jpeg,image/png,application/pdf" style="display:none"
                     onchange="handleUpload(this)">
-
                 <div class="upload-buttons">
                     <button class="btn btn-white" onclick="triggerFileUpload()">📸 Datei wählen</button>
                     <button class="btn btn-accent" onclick="openCamera()">📷 Kamera</button>
                 </div>
-
-                <!-- Progress -->
                 <div id="progressContainer" class="progress-container">
                     <div id="progressStatus" class="progress-status">🔄 Initialisiere...</div>
                     <div class="progress-bar-bg">
                         <div id="progressBar" class="progress-bar"></div>
                     </div>
                 </div>
-
-                <!-- Preview -->
                 <div id="imagePreview" class="image-preview">
                     <img id="previewImg" alt="Vorschau">
                 </div>
             </div>
 
-            <!-- Manual Add -->
             <div class="word-form">
                 <h3>✍️ Manuell hinzufügen</h3>
                 <input type="text" id="germanWord" class="form-input" placeholder="Deutsches Wort" autocomplete="off">
@@ -98,18 +89,15 @@
                 <button class="btn btn-primary" onclick="addWord()">➕ Hinzufügen</button>
             </div>
 
-            <!-- Quick Category -->
             <div class="quick-category">
-                <p>Neue Kategorie benötigt?</p>
-                <button class="btn btn-secondary btn-small" onclick="openNewCatModal()">➕ Neue Kategorie</button>
+                <p>Neues Kapitel benötigt?</p>
+                <button class="btn btn-secondary btn-small" onclick="openNewCatModal()">➕ Neues Kapitel</button>
             </div>
 
-            <!-- Pending Words -->
             <div id="pendingContainer" class="hidden">
                 <div class="pending-box">
                     <h3>📋 Bereit (<span id="pendingCount">0</span>)</h3>
                     <div id="pendingList"></div>
-
                     <div class="direction-box">
                         <h4 style="margin-bottom: 8px; font-size: 14px; color: var(--text-secondary);">Richtung:</h4>
                         <label class="direction-option">
@@ -125,11 +113,9 @@
                             <span>🔄 Beides (2× so viele Karten)</span>
                         </label>
                     </div>
-
                     <label
-                        style="display: block; margin-bottom: 5px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">Kategorie:</label>
+                        style="display: block; margin-bottom: 5px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">Kapitel:</label>
                     <select id="targetCat"></select>
-
                     <button class="btn btn-success mt-sm" onclick="createCards()">✅ Karten erstellen</button>
                 </div>
             </div>
@@ -139,19 +125,27 @@
         <div id="learn" class="content">
             <div id="learnArea">
                 <div class="empty-state">
-                    <div class="empty-icon">📂</div>
-                    <p>Wähle eine Kategorie<br>im Kategorien-Tab!</p>
+                    <div class="empty-icon">🎯</div>
+                    <p>Wähle ein Kapitel<br>und starte eine Lernsession!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== STATISTIK TAB ===== -->
+        <div id="stats" class="content">
+            <div id="statsArea">
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <p>Starte eine Lernsession<br>um Statistiken zu sehen!</p>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- ===== MODALS ===== -->
-
-    <!-- Edit Category Modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
-            <h3>📝 Kategorie bearbeiten</h3>
+            <h3>📝 Kapitel bearbeiten</h3>
             <label>Name:</label>
             <input type="text" id="editName" class="form-input" autocomplete="off">
             <label style="margin-top: 8px;">Icon wählen:</label>
@@ -161,10 +155,9 @@
         </div>
     </div>
 
-    <!-- New Category Modal -->
     <div id="newCatModal" class="modal">
         <div class="modal-content">
-            <h3>➕ Neue Kategorie erstellen</h3>
+            <h3>➕ Neues Kapitel erstellen</h3>
             <label>Name:</label>
             <input type="text" id="newCatName" class="form-input" placeholder="z.B. Kapitel 1, Verben, Medizin..."
                 autocomplete="off">
@@ -175,10 +168,12 @@
         </div>
     </div>
 
-    <!-- Scripts (Order matters!) -->
+    <!-- Scripts -->
     <script src="preprocessing.js"></script>
     <script src="ocr.js"></script>
     <script src="pdf-handler.js"></script>
+    <script src="stats.js"></script>
+    <script src="quiz.js"></script>
     <script src="app.js"></script>
 </body>
 
