@@ -704,6 +704,10 @@
             showCard();
         }
         
+        // ===== GEMINI API CONFIGURATION =====
+        const GEMINI_API_KEY = 'AIzaSyDD3Eyb10Tuc2GSwZxF27UWnhu7TNAmvlM'; // Dein persönlicher Key
+        const USE_GEMINI = true; // true = Gemini OCR (BESTE Qualität!), false = Tesseract
+        
         // ===== CAMERA FUNCTION =====
         function openCamera() {
             const input = document.createElement('input');
@@ -811,13 +815,44 @@
                 progressDiv.style.display = 'block';
                 updateProgress('🔄 Starte OCR...', 10);
                 
-                // Run OCR
-                const text = await runOCR(file, (status, progress) => {
-                    updateProgress(status, progress);
-                });
+                let words = [];
                 
-                // Process text
-                await processOCRResult(text);
+                // Choose OCR method
+                if (USE_GEMINI) {
+                    console.log('🤖 Nutze Gemini AI OCR');
+                    words = await runGeminiOCR(file, (status, progress) => {
+                        updateProgress(status, progress);
+                    });
+                } else {
+                    console.log('👁️ Nutze Tesseract OCR');
+                    const text = await runOCR(file, (status, progress) => {
+                        updateProgress(status, progress);
+                    });
+                    words = extractWords(text);
+                }
+                
+                // Process results
+                if (words.length === 0) {
+                    updateProgress('⚠️ Keine Wortpaare erkannt', 100, '#ff9800');
+                    setTimeout(() => {
+                        alert(
+                            '⚠️ Keine Wortpaare erkannt!\n\n' +
+                            'Versuche:\n' +
+                            '• Besseres Foto (mehr Licht)\n' +
+                            '• Klarere Schrift\n' +
+                            '• Oder "Manuell hinzufügen"'
+                        );
+                        hideProgressWithDelay();
+                    }, 1000);
+                } else {
+                    pending = pending.concat(words);
+                    renderPending();
+                    updateProgress('✅ Erfolgreich erkannt!', 100, '#4caf50');
+                    setTimeout(() => {
+                        alert(`✅ ${words.length} Wortpaar${words.length > 1 ? 'e' : ''} erkannt!\n\nPrüfe die Liste und wähle eine Kategorie.`);
+                        hideProgressWithDelay();
+                    }, 500);
+                }
                 
             } catch (error) {
                 handleOCRError(error);
@@ -889,6 +924,109 @@
                 
             } catch (error) {
                 handleOCRError(error);
+            }
+        }
+        
+        // ===== RUN GEMINI OCR =====
+        async function runGeminiOCR(file, progressCallback) {
+            progressCallback('🤖 Starte Gemini AI...', 20);
+            
+            // Convert to base64
+            const base64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64String = reader.result.split(',')[1];
+                    resolve(base64String);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            
+            progressCallback('📤 Sende Bild an Gemini...', 40);
+            
+            const prompt = `Du bist ein OCR-Experte für Deutsch-Arabische Vokabellisten.
+
+Analysiere dieses Bild und extrahiere ALLE Deutsch-Arabisch Wortpaare.
+
+WICHTIG:
+- Erkenne BEIDE Richtungen: Deutsch→Arabisch UND Arabisch→Deutsch
+- Speichere aber IMMER als: {"de": "deutsches_wort", "ar": "arabisches_wort"}
+- Arabisch MIT Tashkeel (Vokalzeichen) beibehalten!
+- Deutsch in Kleinbuchstaben
+- Ignoriere Sonderzeichen, Zahlen, Müll
+
+FORMAT:
+Gib mir NUR ein JSON-Array zurück, NICHTS ANDERES:
+[
+  {"de": "glauben", "ar": "آمَنَ بِاللّه"},
+  {"de": "nehmen", "ar": "أَخَذَ هُ"}
+]
+
+KEIN Text davor oder danach - NUR das JSON-Array!`;
+
+            try {
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [
+                                    { text: prompt },
+                                    { inline_data: { mime_type: file.type, data: base64 } }
+                                ]
+                            }],
+                            generationConfig: {
+                                temperature: 0.1,
+                                maxOutputTokens: 2048
+                            }
+                        })
+                    }
+                );
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Gemini API Error:', errorText);
+                    throw new Error(`Gemini API Error: ${response.status}`);
+                }
+                
+                progressCallback('🧠 Gemini analysiert...', 70);
+                
+                const data = await response.json();
+                console.log('🤖 Gemini Response:', data);
+                
+                const text = data.candidates[0].content.parts[0].text;
+                console.log('📝 Gemini Text:', text);
+                
+                progressCallback('📋 Verarbeite Ergebnisse...', 90);
+                
+                // Extract JSON from response
+                const jsonMatch = text.match(/\[[\s\S]*\]/);
+                if (!jsonMatch) {
+                    console.error('❌ Kein JSON gefunden in:', text);
+                    throw new Error('Gemini gab kein JSON zurück');
+                }
+                
+                const words = JSON.parse(jsonMatch[0]);
+                console.log('✅ Gemini erkannte Wörter:', words);
+                
+                // Validate and clean
+                const validWords = words
+                    .filter(w => w.de && w.ar && w.de.length >= 2)
+                    .map(w => ({
+                        de: w.de.toLowerCase().trim(),
+                        ar: w.ar.trim(),
+                        ex: w.ex || ''
+                    }));
+                
+                console.log('✅ Validierte Wörter:', validWords);
+                
+                return validWords;
+                
+            } catch (error) {
+                console.error('❌ Gemini OCR Error:', error);
+                throw error;
             }
         }
         
