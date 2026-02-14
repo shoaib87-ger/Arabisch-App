@@ -304,14 +304,16 @@ async function processImage(file) {
     showProgress();
     updateProgress('🔧 Bild wird optimiert...', 10);
 
-    // 1. Preprocessing
-    const { blob, thumbnail } = await ImagePreprocessor.process(file);
+    // 1. Dual-Pipeline Preprocessing
+    //    - originalBlob: Farbbild für Gemini (3000px, JPEG)
+    //    - processedBlob: Binarisiert für Tesseract (2000px, PNG)
+    const { originalBlob, processedBlob, thumbnail } = await ImagePreprocessor.process(file);
 
     // 2. Preview anzeigen
     showPreview(thumbnail);
 
-    // 3. OCR ausführen
-    const words = await performOCR(blob, (status, pct) => updateProgress(status, pct));
+    // 3. OCR ausführen — Gemini bekommt Original, Tesseract bekommt Preprocessed
+    const words = await performOCR(originalBlob, processedBlob, (status, pct) => updateProgress(status, pct));
 
     // 4. Ergebnisse verarbeiten
     handleOCRResults(words);

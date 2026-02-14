@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Dr. Shoaibs Lern-App</title>
 
     <!-- PWA Meta Tags -->
@@ -13,8 +15,13 @@
     <meta name="description" content="Deutsch-Arabisch Lernkarten mit OCR">
     <link rel="manifest" href="manifest.json">
 
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Fonts: Preconnect for fast loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Arabic Fonts: Amiri (primary), Scheherazade New (fallback), Noto Naskh (system) -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&display=swap"
+        rel="stylesheet">
 
     <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
@@ -28,6 +35,7 @@
     <!-- Tesseract.js (Fallback) -->
     <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
+
 <body>
     <div class="app-container">
         <!-- Header -->
@@ -54,9 +62,11 @@
             <!-- Upload Hero -->
             <div class="upload-hero">
                 <h3>📷 Foto oder PDF hochladen</h3>
-                <p class="subtitle">Lade ein Foto mit Vokabeln hoch — wird automatisch erkannt!<br>✅ JPG, PNG, PDF (mehrere Seiten)</p>
+                <p class="subtitle">Lade ein Foto mit Vokabeln hoch — wird automatisch erkannt!<br>✅ JPG, PNG, PDF
+                    (mehrere Seiten)</p>
 
-                <input type="file" id="fileInput" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="handleUpload(this)">
+                <input type="file" id="fileInput" accept="image/jpeg,image/png,application/pdf" style="display:none"
+                    onchange="handleUpload(this)">
 
                 <div class="upload-buttons">
                     <button class="btn btn-white" onclick="triggerFileUpload()">📸 Datei wählen</button>
@@ -81,8 +91,10 @@
             <div class="word-form">
                 <h3>✍️ Manuell hinzufügen</h3>
                 <input type="text" id="germanWord" class="form-input" placeholder="Deutsches Wort" autocomplete="off">
-                <input type="text" id="arabicWord" class="form-input arabic" placeholder="Arabisches Wort" autocomplete="off" dir="rtl">
-                <input type="text" id="exampleText" class="form-input" placeholder="Beispiel (optional)" autocomplete="off">
+                <input type="text" id="arabicWord" class="form-input arabic" placeholder="Arabisches Wort"
+                    autocomplete="off" dir="rtl">
+                <input type="text" id="exampleText" class="form-input" placeholder="Beispiel (optional)"
+                    autocomplete="off">
                 <button class="btn btn-primary" onclick="addWord()">➕ Hinzufügen</button>
             </div>
 
@@ -114,7 +126,8 @@
                         </label>
                     </div>
 
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Kategorie:</label>
+                    <label
+                        style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Kategorie:</label>
                     <select id="targetCat"></select>
 
                     <button class="btn btn-success mt-sm" onclick="createCards()">✅ Karten erstellen</button>
@@ -139,9 +152,11 @@
     <div id="editModal" class="modal">
         <div class="modal-content">
             <h3>📝 Kategorie bearbeiten</h3>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Name:</label>
+            <label
+                style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Name:</label>
             <input type="text" id="editName" class="form-input" autocomplete="off">
-            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 14px;">Icon wählen:</label>
+            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 14px;">Icon
+                wählen:</label>
             <div id="editIconPicker" class="icon-picker"></div>
             <button class="btn btn-primary mb-sm" onclick="saveEdit()">✅ Speichern</button>
             <button class="btn btn-secondary" onclick="closeModal('editModal')">Abbrechen</button>
@@ -152,9 +167,12 @@
     <div id="newCatModal" class="modal">
         <div class="modal-content">
             <h3>➕ Neue Kategorie erstellen</h3>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Name:</label>
-            <input type="text" id="newCatName" class="form-input" placeholder="z.B. Kapitel 1, Verben, Medizin..." autocomplete="off">
-            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 14px;">Icon wählen:</label>
+            <label
+                style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Name:</label>
+            <input type="text" id="newCatName" class="form-input" placeholder="z.B. Kapitel 1, Verben, Medizin..."
+                autocomplete="off">
+            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 14px;">Icon
+                wählen:</label>
             <div id="newCatIconPicker" class="icon-picker"></div>
             <button class="btn btn-primary mb-sm" onclick="saveNewCat()">✅ Erstellen</button>
             <button class="btn btn-secondary" onclick="closeModal('newCatModal')">Abbrechen</button>
@@ -167,4 +185,5 @@
     <script src="pdf-handler.js"></script>
     <script src="app.js"></script>
 </body>
+
 </html>

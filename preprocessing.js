@@ -1,62 +1,87 @@
 /**
  * preprocessing.js — Bild-Vorverarbeitung für OCR
- * Graustufen, Otsu-Thresholding, Skalierung, Kontrast
+ * 
+ * ZWEI PIPELINES:
+ * 1. Gemini:    Original-Bild skaliert (Farbe erhalten! Keine Binarisierung!)
+ * 2. Tesseract: Graustufen → Kontrast → Otsu-Thresholding (Binarisierung)
+ *
+ * WARUM? Otsu-Thresholding zerstört arabische Diakritika (Tashkeel):
+ * Die feinen Punkte ً ٌ ٍ َ ُ ِ ّ ْ werden bei Binarisierung verschluckt.
+ * Gemini als Vision-Modell braucht das Originalbild.
  */
 
 const ImagePreprocessor = {
-    MAX_WIDTH: 2000,
-    MAX_HEIGHT: 2000,
+    // Höhere Auflösung = bessere Diakritika-Erkennung
+    GEMINI_MAX: 3000,       // Gemini: hohe Auflösung, Farbe
+    TESSERACT_MAX: 2000,    // Tesseract: niedriger für Performance
 
     /**
-     * Vollständige Preprocessing-Pipeline
-     * @param {File|Blob} file - Eingabe-Bild
-     * @returns {Promise<{blob: Blob, thumbnail: string}>} - Verarbeitetes Bild + Thumbnail
+     * Erstelle BEIDE Versionen: Original für Gemini + Preprocessed für Tesseract
+     * @param {File|Blob} file
+     * @returns {Promise<{originalBlob: Blob, processedBlob: Blob, thumbnail: string}>}
      */
     async process(file) {
-        console.log('🔧 Preprocessing: Start...');
+        console.log('🔧 Preprocessing: Start (Dual-Pipeline)...');
 
-        // 1. Lade Bild als ImageBitmap (speichereffizient)
+        // 1. Lade Bild als ImageBitmap
         const img = await createImageBitmap(file);
         console.log(`📐 Original: ${img.width}×${img.height}`);
 
-        // 2. Canvas erstellen und skalieren
+        // ===== PIPELINE A: Gemini (Farbe behalten, hohe Auflösung) =====
+        const originalBlob = await this._createScaledBlob(img, this.GEMINI_MAX, false);
+        console.log(`🤖 Gemini-Bild: ${(originalBlob.size / 1024).toFixed(1)} KB (Farbe, ${this.GEMINI_MAX}px max)`);
+
+        // ===== PIPELINE B: Tesseract (Graustufen + Thresholding) =====
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        const scale = Math.min(1, this.MAX_WIDTH / img.width, this.MAX_HEIGHT / img.height);
+        const scale = Math.min(1, this.TESSERACT_MAX / img.width, this.TESSERACT_MAX / img.height);
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
-        console.log(`📐 Skaliert: ${canvas.width}×${canvas.height} (Faktor: ${scale.toFixed(2)})`);
 
-        // 3. Zeichne skaliertes Bild
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        img.close(); // ImageBitmap freigeben
 
-        // 4. Thumbnail für Preview erstellen (max 400px)
+        // Thumbnail VOR Thresholding (sonst ist Preview schwarz-weiß)
         const thumbnail = this._createThumbnail(canvas, 400);
 
-        // 5. Graustufen-Konvertierung
+        // Preprocessing für Tesseract
         this._toGrayscale(ctx, canvas.width, canvas.height);
-        console.log('🎨 Graustufen angewendet');
-
-        // 6. Kontrast erhöhen (vor Thresholding)
-        this._enhanceContrast(ctx, canvas.width, canvas.height, 1.5);
-        console.log('🔆 Kontrast verstärkt');
-
-        // 7. Otsu-Thresholding (Binarisierung)
+        this._enhanceContrast(ctx, canvas.width, canvas.height, 1.4);
         this._applyOtsuThreshold(ctx, canvas.width, canvas.height);
-        console.log('⬛⬜ Otsu-Thresholding angewendet');
 
-        // 8. Exportiere als PNG Blob
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        console.log(`📦 Output: ${(blob.size / 1024).toFixed(1)} KB`);
+        const processedBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        console.log(`⚙️ Tesseract-Bild: ${(processedBlob.size / 1024).toFixed(1)} KB (Binarisiert, ${canvas.width}×${canvas.height})`);
 
-        // 9. Canvas freigeben
+        // Cleanup
         canvas.width = 0;
         canvas.height = 0;
+        img.close();
 
-        console.log('✅ Preprocessing fertig');
-        return { blob, thumbnail };
+        console.log('✅ Preprocessing fertig (Dual-Pipeline)');
+        return { originalBlob, processedBlob, thumbnail };
+    },
+
+    /**
+     * Skaliere Bild ohne Preprocessing — für Gemini
+     */
+    async _createScaledBlob(img, maxSize, asJpeg = true) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const scale = Math.min(1, maxSize / img.width, maxSize / img.height);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // JPEG mit hoher Qualität für Gemini (kleiner als PNG, reicht aus)
+        const blob = await new Promise(resolve =>
+            canvas.toBlob(resolve, asJpeg ? 'image/jpeg' : 'image/png', 0.92)
+        );
+
+        canvas.width = 0;
+        canvas.height = 0;
+        return blob;
     },
 
     /**
@@ -65,7 +90,7 @@ const ImagePreprocessor = {
     processCanvas(canvas) {
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         this._toGrayscale(ctx, canvas.width, canvas.height);
-        this._enhanceContrast(ctx, canvas.width, canvas.height, 1.5);
+        this._enhanceContrast(ctx, canvas.width, canvas.height, 1.4);
         this._applyOtsuThreshold(ctx, canvas.width, canvas.height);
         return canvas;
     },
