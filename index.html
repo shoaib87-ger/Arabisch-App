@@ -8,7 +8,7 @@
     <title>Dr. Shoaibs Lern-App</title>
 
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#00b4d8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Lern-App">
@@ -18,9 +18,9 @@
     <!-- Fonts: Preconnect for fast loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Arabic Fonts: Amiri (primary), Scheherazade New (fallback), Noto Naskh (system) -->
+    <!-- Inter (Primary UI) + Arabic Fonts -->
     <link
-        href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&display=swap"
         rel="stylesheet">
 
     <!-- Styles -->
@@ -44,7 +44,7 @@
             <p>Deutsch ↔ Arabisch</p>
         </div>
 
-        <!-- Tab Bar -->
+        <!-- Tab Bar (Top) -->
         <div class="tab-bar">
             <div class="tab active" data-tab="categories" onclick="switchTab('categories')">📂 Kategorien</div>
             <div class="tab" data-tab="upload" onclick="switchTab('upload')">📤 Upload</div>
@@ -60,7 +60,7 @@
         <!-- ===== UPLOAD TAB ===== -->
         <div id="upload" class="content">
             <!-- Upload Hero -->
-            <div class="upload-hero">
+            <div class="upload-hero" id="uploadHero">
                 <h3>📷 Foto oder PDF hochladen</h3>
                 <p class="subtitle">Lade ein Foto mit Vokabeln hoch — wird automatisch erkannt!<br>✅ JPG, PNG, PDF
                     (mehrere Seiten)</p>
@@ -111,7 +111,7 @@
                     <div id="pendingList"></div>
 
                     <div class="direction-box">
-                        <h4 style="margin-bottom: 8px; font-size: 14px;">Richtung:</h4>
+                        <h4 style="margin-bottom: 8px; font-size: 14px; color: var(--text-secondary);">Richtung:</h4>
                         <label class="direction-option">
                             <input type="radio" name="dir" value="de-ar" checked>
                             <span>➡️ Deutsch → Arabisch (empfohlen)</span>
@@ -127,7 +127,7 @@
                     </div>
 
                     <label
-                        style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Kategorie:</label>
+                        style="display: block; margin-bottom: 5px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">Kategorie:</label>
                     <select id="targetCat"></select>
 
                     <button class="btn btn-success mt-sm" onclick="createCards()">✅ Karten erstellen</button>
@@ -152,11 +152,9 @@
     <div id="editModal" class="modal">
         <div class="modal-content">
             <h3>📝 Kategorie bearbeiten</h3>
-            <label
-                style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Name:</label>
+            <label>Name:</label>
             <input type="text" id="editName" class="form-input" autocomplete="off">
-            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 14px;">Icon
-                wählen:</label>
+            <label style="margin-top: 8px;">Icon wählen:</label>
             <div id="editIconPicker" class="icon-picker"></div>
             <button class="btn btn-primary mb-sm" onclick="saveEdit()">✅ Speichern</button>
             <button class="btn btn-secondary" onclick="closeModal('editModal')">Abbrechen</button>
@@ -167,12 +165,10 @@
     <div id="newCatModal" class="modal">
         <div class="modal-content">
             <h3>➕ Neue Kategorie erstellen</h3>
-            <label
-                style="display: block; margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px;">Name:</label>
+            <label>Name:</label>
             <input type="text" id="newCatName" class="form-input" placeholder="z.B. Kapitel 1, Verben, Medizin..."
                 autocomplete="off">
-            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 14px;">Icon
-                wählen:</label>
+            <label style="margin-top: 8px;">Icon wählen:</label>
             <div id="newCatIconPicker" class="icon-picker"></div>
             <button class="btn btn-primary mb-sm" onclick="saveNewCat()">✅ Erstellen</button>
             <button class="btn btn-secondary" onclick="closeModal('newCatModal')">Abbrechen</button>

@@ -1,6 +1,6 @@
 /**
  * app.js — Hauptlogik: State-Management, UI, Kategorien, Karteikarten
- * Sauberes State-Management mit vollständigem Reset
+ * Redesign: Swipe-Gesten, farbkodierte Toasts, Drag & Drop, Kategorie-Farben
  */
 
 // ===== STATE =====
@@ -16,6 +16,11 @@ const AppState = {
     selectedIcon: null,
     isProcessing: false,
     previewURL: null,
+    // Swipe state
+    touchStartX: 0,
+    touchStartY: 0,
+    touchCurrentX: 0,
+    isSwiping: false,
 };
 
 const ICONS = ['📝', '🏃', '🏠', '🍕', '✈️', '🏥', '💼', '🎓', '⚽', '🎵', '📚', '🌍', '🎨', '🔧', '💊', '🎯', '🚗', '📱', '💡', '🎪'];
@@ -51,7 +56,7 @@ const Storage = {
         } catch (e) {
             console.error('❌ Storage Save Error:', e);
             if (e.name === 'QuotaExceededError') {
-                showToast('⚠️ Speicher voll! Lösche alte Kategorien.');
+                showToast('⚠️ Speicher voll! Lösche alte Kategorien.', 'warning');
             }
         }
     },
@@ -70,9 +75,9 @@ const Storage = {
     }
 };
 
-// ===== TOAST NOTIFICATION =====
+// ===== TOAST NOTIFICATION (Farbkodiert) =====
 let toastTimeout = null;
-function showToast(message, duration = 2500) {
+function showToast(message, type = 'info', duration = 2800) {
     let toast = document.getElementById('toast');
     if (!toast) {
         toast = document.createElement('div');
@@ -80,12 +85,28 @@ function showToast(message, duration = 2500) {
         toast.className = 'toast';
         document.body.appendChild(toast);
     }
-    toast.textContent = message;
+
+    // Detect type from emoji if not explicitly provided
+    if (type === 'info') {
+        if (message.startsWith('✅') || message.startsWith('🎉')) type = 'success';
+        else if (message.startsWith('⚠️')) type = 'warning';
+        else if (message.startsWith('❌')) type = 'error';
+        else if (message.startsWith('📭') || message.startsWith('🗑️')) type = 'info';
+    }
+
+    // Set content with progress bar
+    toast.innerHTML = `
+        <span>${message}</span>
+        <div class="toast-progress" style="animation-duration: ${duration}ms;"></div>
+    `;
+
+    // Reset classes
+    toast.className = 'toast';
 
     if (toastTimeout) clearTimeout(toastTimeout);
 
     requestAnimationFrame(() => {
-        toast.classList.add('visible');
+        toast.classList.add('visible', `toast-${type}`);
         toastTimeout = setTimeout(() => {
             toast.classList.remove('visible');
         }, duration);
@@ -147,7 +168,7 @@ function selectNewCatIcon(icon) {
 function saveNewCat() {
     const name = document.getElementById('newCatName').value.trim();
     if (!name) {
-        showToast('⚠️ Bitte einen Namen eingeben!');
+        showToast('⚠️ Bitte einen Namen eingeben!', 'warning');
         return;
     }
 
@@ -161,7 +182,7 @@ function saveNewCat() {
     Storage.save();
     renderCategories();
     closeModal('newCatModal');
-    showToast(`✅ "${name}" erstellt!`);
+    showToast(`✅ "${name}" erstellt!`, 'success');
 }
 
 function editCategory(catId) {
@@ -184,7 +205,7 @@ function saveEdit() {
     if (!cat) return;
     const newName = document.getElementById('editName').value.trim();
     if (!newName) {
-        showToast('⚠️ Bitte Namen eingeben!');
+        showToast('⚠️ Bitte Namen eingeben!', 'warning');
         return;
     }
     cat.name = newName;
@@ -193,7 +214,7 @@ function saveEdit() {
     renderCategories();
     closeModal('editModal');
     AppState.editingCatId = null;
-    showToast('✅ Aktualisiert!');
+    showToast('✅ Aktualisiert!', 'success');
 }
 
 function deleteCategory(catId) {
@@ -208,7 +229,7 @@ function deleteCategory(catId) {
     AppState.cards = AppState.cards.filter(c => c.cat !== catId);
     Storage.save();
     renderCategories();
-    showToast(`🗑️ "${cat.name}" gelöscht`);
+    showToast(`🗑️ "${cat.name}" gelöscht`, 'info');
 }
 
 function selectCat(id) {
@@ -217,7 +238,7 @@ function selectCat(id) {
     AppState.currentIdx = 0;
     AppState.flipped = false;
     if (AppState.currentCards.length === 0) {
-        showToast('📭 Keine Karten in dieser Kategorie');
+        showToast('📭 Keine Karten in dieser Kategorie', 'info');
         return;
     }
     switchTab('learn');
@@ -263,7 +284,7 @@ function triggerFileUpload() {
 async function handleUpload(input) {
     if (!input.files || !input.files[0]) return;
     if (AppState.isProcessing) {
-        showToast('⏳ Bitte warten, OCR läuft noch...');
+        showToast('⏳ Bitte warten, OCR läuft noch...', 'warning');
         return;
     }
 
@@ -288,12 +309,12 @@ async function handleUpload(input) {
         } else if (file.type.startsWith('image/')) {
             await processImage(file);
         } else {
-            showToast('❌ Format nicht unterstützt (JPG, PNG, PDF)');
+            showToast('❌ Format nicht unterstützt (JPG, PNG, PDF)', 'error');
         }
     } catch (error) {
         console.error('❌ Upload Error:', error);
         updateProgress('❌ Fehler: ' + error.message, 100, 'danger');
-        showToast('❌ ' + error.message);
+        showToast('❌ ' + error.message, 'error');
     } finally {
         AppState.isProcessing = false;
         input.value = ''; // File input reset
@@ -305,14 +326,12 @@ async function processImage(file) {
     updateProgress('🔧 Bild wird optimiert...', 10);
 
     // 1. Dual-Pipeline Preprocessing
-    //    - originalBlob: Farbbild für Gemini (3000px, JPEG)
-    //    - processedBlob: Binarisiert für Tesseract (2000px, PNG)
     const { originalBlob, processedBlob, thumbnail } = await ImagePreprocessor.process(file);
 
     // 2. Preview anzeigen
     showPreview(thumbnail);
 
-    // 3. OCR ausführen — Gemini bekommt Original, Tesseract bekommt Preprocessed
+    // 3. OCR ausführen
     const words = await performOCR(originalBlob, processedBlob, (status, pct) => updateProgress(status, pct));
 
     // 4. Ergebnisse verarbeiten
@@ -335,7 +354,7 @@ async function processPdf(file) {
 function handleOCRResults(words) {
     if (!words || words.length === 0) {
         updateProgress('⚠️ Keine Wortpaare erkannt', 100, 'warning');
-        showToast('⚠️ Keine Wortpaare erkannt. Versuche ein besseres Foto.');
+        showToast('⚠️ Keine Wortpaare erkannt. Versuche ein besseres Foto.', 'warning');
         hideProgressDelayed();
         return;
     }
@@ -344,7 +363,7 @@ function handleOCRResults(words) {
     Storage.savePending();
     renderPending();
     updateProgress(`✅ ${words.length} Wortpaare erkannt!`, 100, 'success');
-    showToast(`✅ ${words.length} Wortpaare erkannt!`);
+    showToast(`✅ ${words.length} Wortpaare erkannt!`, 'success');
     hideProgressDelayed();
 }
 
@@ -360,10 +379,10 @@ function updateProgress(status, percent, type = 'normal') {
     if (statusEl) statusEl.textContent = status;
     if (barEl) {
         barEl.style.width = percent + '%';
-        if (type === 'success') barEl.style.background = '#4caf50';
-        else if (type === 'warning') barEl.style.background = '#ff9800';
-        else if (type === 'danger') barEl.style.background = '#f44336';
-        else barEl.style.background = 'white';
+        if (type === 'success') barEl.style.background = 'var(--gradient-success)';
+        else if (type === 'warning') barEl.style.background = 'var(--warning)';
+        else if (type === 'danger') barEl.style.background = 'var(--danger)';
+        else barEl.style.background = 'var(--gradient-primary)';
     }
 }
 
@@ -395,7 +414,7 @@ function addWord() {
     const ar = document.getElementById('arabicWord').value.trim();
     const ex = document.getElementById('exampleText').value.trim();
     if (!de || !ar) {
-        showToast('⚠️ Deutsch + Arabisch ausfüllen!');
+        showToast('⚠️ Deutsch + Arabisch ausfüllen!', 'warning');
         return;
     }
     AppState.pending.push({ de, ar, ex });
@@ -404,7 +423,7 @@ function addWord() {
     document.getElementById('arabicWord').value = '';
     document.getElementById('exampleText').value = '';
     renderPending();
-    showToast('➕ Wort hinzugefügt');
+    showToast('➕ Wort hinzugefügt', 'success');
 }
 
 function removeWord(i) {
@@ -441,8 +460,8 @@ function createCards() {
     const catId = document.getElementById('targetCat').value;
     const dir = document.querySelector('input[name="dir"]:checked').value;
 
-    if (!catId) { showToast('⚠️ Kategorie wählen!'); return; }
-    if (AppState.pending.length === 0) { showToast('⚠️ Keine Wörter vorhanden!'); return; }
+    if (!catId) { showToast('⚠️ Kategorie wählen!', 'warning'); return; }
+    if (AppState.pending.length === 0) { showToast('⚠️ Keine Wörter vorhanden!', 'warning'); return; }
 
     let created = 0;
     AppState.pending.forEach(w => {
@@ -470,7 +489,7 @@ function createCards() {
     fullReset();
 
     const cat = AppState.categories.find(c => c.id === catId);
-    showToast(`✅ ${created} Karten erstellt in "${cat.name}"!`);
+    showToast(`✅ ${created} Karten erstellt in "${cat.name}"!`, 'success');
     renderCategories();
 }
 
@@ -502,19 +521,19 @@ function fullReset() {
     console.log('✅ Reset abgeschlossen');
 }
 
-// ===== FLASHCARD LEARNING =====
+// ===== FLASHCARD LEARNING (mit Swipe) =====
 function showCard() {
     const card = AppState.currentCards[AppState.currentIdx];
     const cat = AppState.categories.find(c => c.id === AppState.currentCat);
     if (!card || !cat) return;
 
     document.getElementById('learnArea').innerHTML = `
-        <div class="flashcard-container">
+        <div class="flashcard-container" id="flashcardContainer">
             <div class="flashcard ${AppState.flipped ? 'flipped' : ''}" id="flashcardEl" onclick="flipCard()">
                 <div class="flashcard-face flashcard-front">
                     <div class="flashcard-number">${cat.icon} ${escapeHtml(cat.name)} — ${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
                     <div class="flashcard-text ${card.frontLang === 'ar' ? 'ar' : ''}">${escapeHtml(card.front)}</div>
-                    <div class="flashcard-hint">👆 Tap zum Umdrehen</div>
+                    <div class="flashcard-hint">👆 Tap zum Umdrehen · ← → Wischen</div>
                 </div>
                 <div class="flashcard-face flashcard-back">
                     <div class="flashcard-number">${cat.icon} ${escapeHtml(cat.name)} — ${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
@@ -529,6 +548,9 @@ function showCard() {
             <button class="btn btn-primary" onclick="nextCard()">Weiter →</button>
         </div>
     `;
+
+    // Attach swipe listeners
+    setupSwipeListeners();
 }
 
 function flipCard() {
@@ -539,20 +561,129 @@ function flipCard() {
 
 function nextCard() {
     if (AppState.currentIdx < AppState.currentCards.length - 1) {
-        AppState.currentIdx++;
-        AppState.flipped = false;
-        showCard();
+        const el = document.getElementById('flashcardEl');
+        if (el) {
+            el.classList.add('swipe-left');
+            setTimeout(() => {
+                AppState.currentIdx++;
+                AppState.flipped = false;
+                showCard();
+            }, 300);
+        } else {
+            AppState.currentIdx++;
+            AppState.flipped = false;
+            showCard();
+        }
     } else {
-        showToast('🎉 Alle Karten durch!');
+        showToast('🎉 Alle Karten durch!', 'success');
     }
 }
 
 function prevCard() {
     if (AppState.currentIdx > 0) {
-        AppState.currentIdx--;
-        AppState.flipped = false;
-        showCard();
+        const el = document.getElementById('flashcardEl');
+        if (el) {
+            el.classList.add('swipe-right');
+            setTimeout(() => {
+                AppState.currentIdx--;
+                AppState.flipped = false;
+                showCard();
+            }, 300);
+        } else {
+            AppState.currentIdx--;
+            AppState.flipped = false;
+            showCard();
+        }
     }
+}
+
+// ===== SWIPE GESTURES =====
+function setupSwipeListeners() {
+    const container = document.getElementById('flashcardContainer');
+    if (!container) return;
+
+    let startX = 0;
+    let startY = 0;
+    let isDragging = false;
+
+    container.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        isDragging = true;
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const dx = e.touches[0].clientX - startX;
+        const dy = e.touches[0].clientY - startY;
+
+        // Only horizontal swipes
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 15) {
+            const el = document.getElementById('flashcardEl');
+            if (el && !AppState.flipped) {
+                const rotation = dx * 0.05;
+                el.style.transition = 'none';
+                el.style.transform = `translateX(${dx}px) rotateZ(${rotation}deg)`;
+                el.style.opacity = Math.max(0.5, 1 - Math.abs(dx) / 400);
+            }
+        }
+    }, { passive: true });
+
+    container.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+
+        const endX = e.changedTouches[0].clientX;
+        const dx = endX - startX;
+        const el = document.getElementById('flashcardEl');
+
+        if (el) {
+            el.style.transition = '';
+            el.style.opacity = '';
+        }
+
+        const swipeThreshold = 80;
+
+        if (dx < -swipeThreshold) {
+            // Swipe left → next card
+            nextCard();
+        } else if (dx > swipeThreshold) {
+            // Swipe right → previous card
+            prevCard();
+        } else {
+            // Snap back
+            if (el) {
+                el.style.transform = AppState.flipped ? 'rotateY(180deg)' : '';
+            }
+        }
+    }, { passive: true });
+}
+
+// ===== DRAG & DROP =====
+function setupDragDrop() {
+    const hero = document.getElementById('uploadHero');
+    if (!hero) return;
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+        hero.addEventListener(event, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+
+    hero.addEventListener('dragenter', () => hero.classList.add('drag-over'));
+    hero.addEventListener('dragover', () => hero.classList.add('drag-over'));
+    hero.addEventListener('dragleave', () => hero.classList.remove('drag-over'));
+
+    hero.addEventListener('drop', (e) => {
+        hero.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+            const fakeInput = { files: files, value: '' };
+            fakeInput.value = files[0].name; // Simulate for reset
+            handleUpload(fakeInput);
+        }
+    });
 }
 
 // ===== HELPERS =====
@@ -570,6 +701,7 @@ function initApp() {
     Storage.load();
     renderCategories();
     renderPending();
+    setupDragDrop();
 
     // Register Service Worker
     if ('serviceWorker' in navigator) {
@@ -581,7 +713,7 @@ function initApp() {
                     const newWorker = reg.installing;
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'activated') {
-                            showToast('🔄 App aktualisiert! Bitte neu laden.');
+                            showToast('🔄 App aktualisiert! Bitte neu laden.', 'info');
                         }
                     });
                 });

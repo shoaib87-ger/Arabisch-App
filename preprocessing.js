@@ -12,7 +12,7 @@
 
 const ImagePreprocessor = {
     // Höhere Auflösung = bessere Diakritika-Erkennung
-    GEMINI_MAX: 3000,       // Gemini: hohe Auflösung, Farbe
+    GEMINI_MAX: 2000,       // Gemini: skaliert nicht hoch, JPEG komprimiert
     TESSERACT_MAX: 2000,    // Tesseract: niedriger für Performance
 
     /**
@@ -27,9 +27,9 @@ const ImagePreprocessor = {
         const img = await createImageBitmap(file);
         console.log(`📐 Original: ${img.width}×${img.height}`);
 
-        // ===== PIPELINE A: Gemini (Farbe behalten, hohe Auflösung) =====
-        const originalBlob = await this._createScaledBlob(img, this.GEMINI_MAX, false);
-        console.log(`🤖 Gemini-Bild: ${(originalBlob.size / 1024).toFixed(1)} KB (Farbe, ${this.GEMINI_MAX}px max)`);
+        // ===== PIPELINE A: Gemini (Farbe behalten, JPEG komprimiert) =====
+        const originalBlob = await this._createScaledBlob(img, this.GEMINI_MAX, true);
+        console.log(`🤖 Gemini-Bild: ${(originalBlob.size / 1024).toFixed(1)} KB (JPEG, ${this.GEMINI_MAX}px max)`);
 
         // ===== PIPELINE B: Tesseract (Graustufen + Thresholding) =====
         const canvas = document.createElement('canvas');

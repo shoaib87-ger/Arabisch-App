@@ -15,15 +15,20 @@
  * LÖSUNG:
  * Word-Level Bounding Boxes → X-Clustering → Y-Matching
  */
-
 // ===== KONFIGURATION =====
 const OCR_CONFIG = {
-    geminiApiKey: 'AIzaSyDD3Eyb10Tuc2GSwZxF27UWnhu7TNAmvlM',
+    geminiApiKey: 'AIzaSyC49Z6P12bmiitamq0Y1npA5ieLbJ5DRM0',
     useGemini: true,
-    geminiModel: 'gemini-2.0-flash',
+    // gemini-2.0-flash-lite hat höhere Free-Tier Limits!
+    geminiModels: ['gemini-2.0-flash-lite', 'gemini-2.0-flash'],
+    apiVersions: ['v1beta'],
+    // Retry-Backoff bei Rate-Limit (Sekunden): 10s → 20s → 40s
+    retryBackoffSec: 10,
+    maxRetries: 3,
     tesseractLangs: 'deu+ara',
-    // Toleranz für Y-Matching (Pixel) — Wörter in gleicher "Zeile"
     rowTolerancePx: 30,
+    // Minimum Confidence für Tesseract Bounding Boxes (0-100)
+    minConfidence: 40,
 };
 
 // ===== TESSERACT WORKER (Singleton) =====
@@ -43,13 +48,9 @@ async function getTesseractWorker() {
     });
 
     // PSM 6 = "Assume a single uniform block of text"
-    // Besser als PSM 4 (single column) für Tabellen-Layouts,
-    // weil PSM 6 die Zeilen-Reihenfolge besser beibehält.
-    // Die Spalten-Trennung machen wir selbst via Bounding Boxes.
     await _tesseractWorker.setParameters({
         tessedit_pageseg_mode: '6',
         preserve_interword_spaces: '1',
-        // KEIN char_whitelist — bricht Arabisch-Ligaturen!
     });
 
     console.log('✅ Tesseract Worker bereit (PSM 6)');
@@ -65,19 +66,153 @@ async function terminateTesseractWorker() {
 }
 
 // =========================================================================
-//  GEMINI OCR (Primary — versteht Layout nativ)
+//  GEMINI OCR — Auto-Model-Discovery mit Fallback-Chain
 // =========================================================================
 const GeminiOCR = {
+    _workingModel: null,  // Caches working model name
+    _workingApiVersion: null,
+
     async recognize(fileOrBlob, progressCallback) {
         progressCallback('🤖 Starte Gemini AI...', 20);
 
         const base64 = await this._toBase64(fileOrBlob);
         const mimeType = fileOrBlob.type || 'image/png';
+        console.log(`📦 Gemini Payload: ${(base64.length * 0.75 / 1024).toFixed(0)} KB, MIME: ${mimeType}`);
 
         progressCallback('📤 Sende an Gemini...', 40);
 
-        // Prompt für 2-Spalten Vokabellisten — BEIDE Richtungen + VOLLE TASHKĪL
-        const prompt = `Du bist ein Experte für arabische Linguistik, Grammatik (Nahw/Sarf) und OCR.
+        const prompt = this._buildPrompt();
+
+        // Wenn wir schon ein funktionierendes Modell kennen → direkt nutzen (mit Retry)
+        if (this._workingModel) {
+            console.log(`🤖 Nutze cached Modell: ${this._workingModel} (${this._workingApiVersion})`);
+            return await this._callWithRetry(this._workingApiVersion, this._workingModel, base64, mimeType, prompt, progressCallback);
+        }
+
+        // Sonst: Alle Kombinationen durchprobieren
+        const errors = [];
+        for (const apiVersion of OCR_CONFIG.apiVersions) {
+            for (const model of OCR_CONFIG.geminiModels) {
+                try {
+                    console.log(`🔄 Versuche: ${apiVersion}/${model}...`);
+                    const result = await this._callWithRetry(apiVersion, model, base64, mimeType, prompt, progressCallback);
+                    // Erfolg! Merke dir dieses Modell
+                    this._workingModel = model;
+                    this._workingApiVersion = apiVersion;
+                    console.log(`✅ Funktionierendes Modell gefunden: ${apiVersion}/${model}`);
+                    return result;
+                } catch (error) {
+                    console.warn(`  ❌ ${apiVersion}/${model}: ${error.message}`);
+                    errors.push(`${model}: ${error.message}`);
+                    if (error.message.includes('API-Key')) throw error;
+                    // Bei Rate-Limit: nächstes Modell probieren (vielleicht hat ein anderes noch Quota)
+                }
+            }
+        }
+
+        throw new Error(`Alle Gemini-Modelle fehlgeschlagen:\n${errors.join('\n')}`);
+    },
+
+    /**
+     * Retry mit Exponential Backoff bei 429 Rate-Limit
+     * Wartet: 10s → 20s → 40s (konfigurierbar)
+     */
+    async _callWithRetry(apiVersion, model, base64, mimeType, prompt, progressCallback) {
+        const maxRetries = OCR_CONFIG.maxRetries;
+        let lastError;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                return await this._callGemini(apiVersion, model, base64, mimeType, prompt, progressCallback);
+            } catch (error) {
+                lastError = error;
+                if (error.message.includes('Rate-Limit') && attempt < maxRetries - 1) {
+                    const waitSec = OCR_CONFIG.retryBackoffSec * Math.pow(2, attempt);
+                    console.log(`⏳ Rate-Limit! Warte ${waitSec}s... (Versuch ${attempt + 2}/${maxRetries})`);
+                    // Countdown anzeigen
+                    for (let s = waitSec; s > 0; s--) {
+                        progressCallback(`⏳ Rate-Limit — noch ${s}s warten...`, 45 + attempt * 5);
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+                    progressCallback(`🔄 Retry ${attempt + 2}/${maxRetries}...`, 50 + attempt * 5);
+                } else {
+                    throw error;
+                }
+            }
+        }
+        throw lastError;
+    },
+
+    async _callGemini(apiVersion, model, base64, mimeType, prompt, progressCallback) {
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${OCR_CONFIG.geminiApiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: prompt },
+                            { inline_data: { mime_type: mimeType, data: base64 } }
+                        ]
+                    }],
+                    generationConfig: {
+                        temperature: 0.1,
+                        maxOutputTokens: 4096
+                    }
+                })
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`❌ Gemini ${model} HTTP ${response.status}:`, errorText);
+            if (response.status === 404) throw new Error(`Modell nicht gefunden`);
+            if (response.status === 429) {
+                // Logge den vollen Fehler für Debugging
+                try {
+                    const errObj = JSON.parse(errorText);
+                    const detail = errObj?.error?.message || 'keine Details';
+                    console.error(`🚫 Rate-Limit Details: ${detail}`);
+                } catch (e) { }
+                throw new Error('Rate-Limit erreicht. Bitte warte 1 Minute.');
+            }
+            if (response.status === 403) throw new Error('API-Key ungültig oder deaktiviert.');
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        progressCallback('🧠 Gemini analysiert...', 70);
+        const data = await response.json();
+
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+            throw new Error('Leere Antwort von Gemini');
+        }
+
+        const text = data.candidates[0].content.parts[0].text;
+        console.log('📝 Gemini Response:', text.substring(0, 500));
+
+        progressCallback('📋 Verarbeite Ergebnisse...', 90);
+
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+            console.error('❌ Kein JSON in Antwort:', text);
+            throw new Error('Gemini konnte keine Wortpaare erkennen.');
+        }
+
+        const words = JSON.parse(jsonMatch[0]);
+        const validWords = words
+            .filter(w => w && w.de && w.ar && w.de.trim().length >= 2)
+            .map(w => ({
+                de: w.de.trim().normalize('NFC'),
+                ar: w.ar.trim().normalize('NFC'),
+                ex: (w.ex || '').trim()
+            }));
+
+        console.log(`✅ Gemini (${model}): ${validWords.length} Wortpaare erkannt`);
+        return validWords;
+    },
+
+    _buildPrompt() {
+        return `Du bist ein Experte für arabische Linguistik, Grammatik (Nahw/Sarf) und OCR.
 
 BILD-LAYOUT:
 Das Bild zeigt eine Vokabelliste mit 2 Spalten (Arabisch + Deutsch).
@@ -97,7 +232,7 @@ SCHRITT 2: Ergänze VOLLSTÄNDIGE Tashkīlāt (Vokalisierung) nach arabischer Gr
 
 REGELN:
 1. Arabisch: VOLL VOKALISIERT ausgeben — JEDER Buchstabe bekommt sein Zeichen
-   Beispiel: أَكَلَ ه statt اكله  |  اِشْتَرَى statt اشترى
+   Beispiel: أَكَلَهُ statt اكله  |  اِشْتَرَى statt اشترى
 2. Wenn im Bild bereits Tashkeel steht: übernehmen UND fehlende ergänzen
 3. Pronomen-Suffixe (ه، ها، هم) gehören zum Wort und werden MIT vokalisiert
 4. Deutsch: Verb + Ergänzung zusammen (z.B. "geben jm. etwas", "kaufen etwas")
@@ -115,73 +250,6 @@ FORMAT — NUR ein JSON-Array, KEIN anderer Text:
   {"de": "kaufen etwas", "ar": "اِشْتَرَاهُ"},
   {"de": "aufwachen", "ar": "اِسْتَيْقَظَ"}
 ]`;
-
-        try {
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${OCR_CONFIG.geminiModel}:generateContent?key=${OCR_CONFIG.geminiApiKey}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [
-                                { text: prompt },
-                                { inline_data: { mime_type: mimeType, data: base64 } }
-                            ]
-                        }],
-                        generationConfig: {
-                            temperature: 0.1,
-                            maxOutputTokens: 4096
-                        }
-                    })
-                }
-            );
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('❌ Gemini API Error:', response.status, errorText);
-                if (response.status === 429) throw new Error('Rate-Limit erreicht. Bitte warte 1 Minute.');
-                if (response.status === 403) throw new Error('API-Key ungültig oder deaktiviert.');
-                throw new Error(`Gemini API Fehler: ${response.status}`);
-            }
-
-            progressCallback('🧠 Gemini analysiert...', 70);
-            const data = await response.json();
-
-            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-                console.error('❌ Gemini: Leere Antwort', data);
-                throw new Error('Gemini gab keine Ergebnisse zurück.');
-            }
-
-            const text = data.candidates[0].content.parts[0].text;
-            console.log('📝 Gemini Response:', text.substring(0, 400));
-
-            progressCallback('📋 Verarbeite Ergebnisse...', 90);
-
-            const jsonMatch = text.match(/\[[\s\S]*\]/);
-            if (!jsonMatch) {
-                console.error('❌ Kein JSON in Antwort:', text);
-                throw new Error('Gemini konnte keine Wortpaare erkennen.');
-            }
-
-            const words = JSON.parse(jsonMatch[0]);
-
-            // Validieren, bereinigen und Unicode normalisieren (NFC)
-            const validWords = words
-                .filter(w => w && w.de && w.ar && w.de.trim().length >= 2)
-                .map(w => ({
-                    de: w.de.trim().normalize('NFC'),
-                    ar: w.ar.trim().normalize('NFC'),  // NFC = korrekte Komposition von Tashkeel
-                    ex: (w.ex || '').trim()
-                }));
-
-            console.log(`✅ Gemini: ${validWords.length} Wortpaare erkannt`);
-            return validWords;
-
-        } catch (error) {
-            console.error('❌ Gemini OCR Error:', error);
-            throw error;
-        }
     },
 
     _toBase64(blob) {
@@ -196,31 +264,53 @@ FORMAT — NUR ein JSON-Array, KEIN anderer Text:
 
 // =========================================================================
 //  TESSERACT OCR MIT BOUNDING-BOX LAYOUT-ANALYSE (Fallback)
+//
+//  PIPELINE:
+//  1. OCR → Word-Level Bounding Boxes
+//  2. Garbage-Filter (Confidence + Character Validation)
+//  3. Spalten-Erkennung via X-Gap-Clustering
+//  4. Zeilen-Gruppierung via Y-Toleranz
+//  5. RTL-aware Wort-Assemblierung (Arab = X absteigend, DE = X aufsteigend)
+//  6. Qualitäts-Validation mit Auto-Korrektur
 // =========================================================================
 const TesseractOCR = {
+    // Unicode-Ranges für arabische Zeichen (inkl. Tashkeel, Ligaturen)
+    ARABIC_REGEX: /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0610-\u061A\u064B-\u065F]/,
+    // Gültige deutsche Zeichen
+    GERMAN_REGEX: /[a-zäöüßA-ZÄÖÜ]/,
+    // Reine Sonderzeichen / Müll
+    GARBAGE_REGEX: /^[^a-zA-ZäöüßÄÖÜ\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+$/,
+
     async recognize(fileOrBlob, progressCallback) {
         progressCallback('⚙️ Starte Tesseract...', 20);
         const worker = await getTesseractWorker();
 
         progressCallback('🔍 Erkenne Text mit Positionsdaten...', 40);
 
-        // ===== SCHRITT 1: Word-Level Daten holen (NICHT nur Text!) =====
         const result = await worker.recognize(fileOrBlob);
-        const words = result.data.words;  // Array mit Bounding Boxes!
+        const allWords = result.data.words;
 
-        console.log(`📊 Tesseract: ${words.length} Wörter mit Bounding Boxes erkannt`);
+        console.log(`📊 Tesseract Roh: ${allWords.length} Wörter erkannt`);
 
-        if (!words || words.length === 0) {
+        if (!allWords || allWords.length === 0) {
             console.warn('⚠️ Keine Wörter erkannt');
             return [];
         }
 
+        // ===== SCHRITT 1: Garbage-Filter =====
+        const words = this._filterGarbage(allWords);
+
+        if (words.length < 2) {
+            console.warn('⚠️ Zu wenige valide Wörter nach Filter');
+            return WordExtractor.extract(result.data.text);
+        }
+
         progressCallback('📐 Analysiere Spalten-Layout...', 60);
 
-        // ===== SCHRITT 2: Bounding Boxes loggen =====
+        // Debug: Bounding Boxes
         this._logBoundingBoxes(words);
 
-        // ===== SCHRITT 3: Spalten erkennen via X-Clustering =====
+        // ===== SCHRITT 2: Spalten erkennen =====
         const columns = this._detectColumns(words);
         if (!columns) {
             console.warn('⚠️ Spalten-Erkennung fehlgeschlagen, Fallback auf Textmodus');
@@ -228,28 +318,75 @@ const TesseractOCR = {
             return WordExtractor.extract(result.data.text);
         }
 
+        // ===== SCHRITT 3: Zeilen gruppieren =====
         progressCallback('🔗 Matche Wortpaare nach Position...', 75);
+        const rows = this._groupIntoRows(words);
 
-        // ===== SCHRITT 4: Wörter in Zeilen gruppieren =====
-        const rows = this._groupIntoRows(words, columns);
+        // ===== SCHRITT 4: RTL-aware Wortpaare bilden =====
+        progressCallback('📋 Erstelle Wortpaare (RTL-aware)...', 90);
+        let pairs = this._buildPairsRTL(rows, columns);
 
-        // ===== SCHRITT 5: Wortpaare bilden =====
-        progressCallback('📋 Erstelle Wortpaare...', 90);
-        const pairs = this._buildPairs(rows, columns);
+        // ===== SCHRITT 5: Qualitäts-Validation =====
+        pairs = this._validateQuality(pairs, rows, columns);
 
         console.log(`✅ Tesseract: ${pairs.length} Wortpaare via Layout-Analyse`);
         return pairs;
     },
 
-    /**
-     * Debug: Bounding Boxes visualisieren
-     */
+    // -----------------------------------------------------------------
+    //  GARBAGE FILTER: Confidence + Zeichenvalidierung
+    // -----------------------------------------------------------------
+    _filterGarbage(allWords) {
+        const filtered = [];
+        let discarded = 0;
+
+        for (const w of allWords) {
+            const text = w.text.trim();
+
+            // Filter 1: Leerer Text
+            if (!text || text.length === 0) {
+                discarded++;
+                continue;
+            }
+
+            // Filter 2: Zu niedrige Confidence
+            if (w.confidence < OCR_CONFIG.minConfidence) {
+                console.log(`  🗑️ Low-Conf (${w.confidence.toFixed(0)}%): "${text}"`);
+                discarded++;
+                continue;
+            }
+
+            // Filter 3: Reine Sonderzeichen/Zahlen (kein einziger Buchstabe)
+            if (this.GARBAGE_REGEX.test(text)) {
+                console.log(`  🗑️ Garbage: "${text}" (${w.confidence.toFixed(0)}%)`);
+                discarded++;
+                continue;
+            }
+
+            // Filter 4: Einzelne Zeichen (nur wenn kein Arabisch)
+            if (text.length === 1 && !this.ARABIC_REGEX.test(text)) {
+                console.log(`  🗑️ Single char: "${text}"`);
+                discarded++;
+                continue;
+            }
+
+            filtered.push(w);
+        }
+
+        console.log(`📊 Garbage-Filter: ${filtered.length} behalten, ${discarded} verworfen`);
+        return filtered;
+    },
+
+    // -----------------------------------------------------------------
+    //  DEBUG: Bounding Boxes visualisieren
+    // -----------------------------------------------------------------
     _logBoundingBoxes(words) {
         console.log('📐 === BOUNDING BOX ANALYSE ===');
         words.forEach((w, i) => {
             const bbox = w.bbox;
+            const isAr = this.ARABIC_REGEX.test(w.text) ? '🟢AR' : '🔵DE';
             console.log(
-                `  [${i}] "${w.text}" ` +
+                `  [${i}] ${isAr} "${w.text}" ` +
                 `x: ${bbox.x0}-${bbox.x1} (center: ${Math.round((bbox.x0 + bbox.x1) / 2)}) ` +
                 `y: ${bbox.y0}-${bbox.y1} (center: ${Math.round((bbox.y0 + bbox.y1) / 2)}) ` +
                 `conf: ${w.confidence.toFixed(1)}%`
@@ -257,107 +394,71 @@ const TesseractOCR = {
         });
     },
 
-    /**
-     * SCHRITT 3: Spalten erkennen via X-Koordinaten Clustering
-     * 
-     * Algorithmus:
-     * 1. Berechne X-Mittelpunkte aller Wörter
-     * 2. Sortiere nach X
-     * 3. Finde den größten "Gap" in der X-Verteilung → das ist die Spaltengrenze
-     * 4. Alles links = Spalte A (Arabisch), rechts = Spalte B (Deutsch)
-     */
+    // -----------------------------------------------------------------
+    //  SPALTEN-ERKENNUNG via X-Gap Clustering
+    // -----------------------------------------------------------------
     _detectColumns(words) {
         if (words.length < 2) return null;
 
-        // X-Mittelpunkte sammeln
         const xCenters = words.map(w => ({
             xCenter: (w.bbox.x0 + w.bbox.x1) / 2,
-            width: w.bbox.x1 - w.bbox.x0,
             word: w
         }));
 
-        // Sortiere nach X-Position
         xCenters.sort((a, b) => a.xCenter - b.xCenter);
 
-        // Finde den größten Gap zwischen aufeinanderfolgenden X-Werten
+        // Finde den größten Gap
         let maxGap = 0;
-        let gapIndex = -1;
         let splitX = 0;
 
         for (let i = 1; i < xCenters.length; i++) {
             const gap = xCenters[i].xCenter - xCenters[i - 1].xCenter;
             if (gap > maxGap) {
                 maxGap = gap;
-                gapIndex = i;
                 splitX = (xCenters[i - 1].xCenter + xCenters[i].xCenter) / 2;
             }
         }
 
-        // Gap muss signifikant sein (mind. 15% der Bildbreite)
+        // Gap muss signifikant sein (mind. 8% der Bildbreite)
         const imageWidth = Math.max(...words.map(w => w.bbox.x1));
         const minGap = imageWidth * 0.08;
 
-        console.log(`📐 Spalten-Analyse: maxGap=${maxGap.toFixed(0)}px, splitX=${splitX.toFixed(0)}px, imageWidth=${imageWidth}px, minGap=${minGap.toFixed(0)}px`);
+        console.log(`📐 Spalten: maxGap=${maxGap.toFixed(0)}px, splitX=${splitX.toFixed(0)}px, imgWidth=${imageWidth}px`);
 
         if (maxGap < minGap) {
-            console.warn('⚠️ Kein klarer Spaltenzwischenraum erkannt');
+            console.warn('⚠️ Kein klarer Spaltenzwischenraum');
             return null;
         }
 
-        // Bestimme welche Spalte Arabisch und welche Deutsch ist
+        // Bestimme Sprachzuordnung
         const leftWords = words.filter(w => (w.bbox.x0 + w.bbox.x1) / 2 < splitX);
         const rightWords = words.filter(w => (w.bbox.x0 + w.bbox.x1) / 2 >= splitX);
 
-        // Prüfe welche Seite Arabisch enthält
-        const leftHasArabic = this._hasArabic(leftWords);
-        const rightHasArabic = this._hasArabic(rightWords);
+        const leftArabicCount = leftWords.filter(w => this.ARABIC_REGEX.test(w.text)).length;
+        const rightArabicCount = rightWords.filter(w => this.ARABIC_REGEX.test(w.text)).length;
 
-        let arabicSide, germanSide;
-        if (leftHasArabic && !rightHasArabic) {
-            arabicSide = 'left';
-            germanSide = 'right';
-        } else if (rightHasArabic && !leftHasArabic) {
-            arabicSide = 'right';
-            germanSide = 'left';
-        } else {
-            // Beide Seiten haben Arabisch oder keine → Heuristik: links = Arabisch
-            arabicSide = 'left';
-            germanSide = 'right';
-        }
+        const arabicSide = leftArabicCount >= rightArabicCount ? 'left' : 'right';
+        const germanSide = arabicSide === 'left' ? 'right' : 'left';
 
-        console.log(`📐 Spalten erkannt: Arabisch=${arabicSide}, Deutsch=${germanSide}, Split bei X=${splitX.toFixed(0)}px`);
+        console.log(`📐 Spalten: AR=${arabicSide} (${Math.max(leftArabicCount, rightArabicCount)} arab. Wörter), DE=${germanSide}`);
 
         return { splitX, arabicSide, germanSide };
     },
 
-    /**
-     * Prüfe ob Wort-Array arabische Zeichen enthält
-     */
-    _hasArabic(words) {
-        const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
-        return words.some(w => arabicRegex.test(w.text));
-    },
-
-    /**
-     * SCHRITT 4: Wörter in Zeilen gruppieren via Y-Position
-     * 
-     * Algorithmus:
-     * 1. Sortiere alle Wörter nach Y-Mittelpunkt
-     * 2. Gruppiere Wörter die innerhalb von TOLERANCE_PX liegen
-     * 3. Jede Gruppe = eine "Zeile" im Layout
-     */
-    _groupIntoRows(words, columns) {
-        // Sortiere nach Y-Position
+    // -----------------------------------------------------------------
+    //  ZEILEN-GRUPPIERUNG via Y-Position
+    // -----------------------------------------------------------------
+    _groupIntoRows(words) {
         const sorted = [...words].sort((a, b) => {
             const yA = (a.bbox.y0 + a.bbox.y1) / 2;
             const yB = (b.bbox.y0 + b.bbox.y1) / 2;
             return yA - yB;
         });
 
-        // Dynamische Toleranz: basierend auf durchschnittlicher Wort-Höhe
+        // Dynamische Toleranz basierend auf Wort-Höhe
         const avgHeight = words.reduce((sum, w) => sum + (w.bbox.y1 - w.bbox.y0), 0) / words.length;
         const tolerance = Math.max(OCR_CONFIG.rowTolerancePx, avgHeight * 0.6);
-        console.log(`📏 Row-Toleranz: ${tolerance.toFixed(0)}px (Ø Wort-Höhe: ${avgHeight.toFixed(0)}px)`);
+        console.log(`📏 Row-Toleranz: ${tolerance.toFixed(0)}px (Ø Höhe: ${avgHeight.toFixed(0)}px)`);
 
         const rows = [];
         let currentRow = [sorted[0]];
@@ -367,16 +468,14 @@ const TesseractOCR = {
             const wordY = (sorted[i].bbox.y0 + sorted[i].bbox.y1) / 2;
 
             if (Math.abs(wordY - currentRowY) <= tolerance) {
-                // Gleiche Zeile
                 currentRow.push(sorted[i]);
             } else {
-                // Neue Zeile
                 rows.push(currentRow);
                 currentRow = [sorted[i]];
                 currentRowY = wordY;
             }
         }
-        rows.push(currentRow); // Letzte Zeile
+        rows.push(currentRow);
 
         console.log(`📋 ${rows.length} Zeilen erkannt`);
         rows.forEach((row, i) => {
@@ -388,17 +487,15 @@ const TesseractOCR = {
         return rows;
     },
 
-    /**
-     * SCHRITT 5: Wortpaare bilden
-     * 
-     * Für jede Zeile:
-     * 1. Trenne Wörter in linke/rechte Spalte (anhand splitX)
-     * 2. Konkateniere alle Wörter pro Spalte
-     * 3. Weise Arabisch/Deutsch zu
-     * 4. Erstelle Wortpaar
-     */
-    _buildPairs(rows, columns) {
-        const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+    // -----------------------------------------------------------------
+    //  WORTPAARE BILDEN — RTL-AWARE
+    //
+    //  KERNLOGIK:
+    //  - Arabische Spalte: Wörter nach X ABSTEIGEND sortieren (RTL!)
+    //  - Deutsche Spalte: Wörter nach X AUFSTEIGEND sortieren (LTR)
+    //  - Dann jeweils konkatenieren
+    // -----------------------------------------------------------------
+    _buildPairsRTL(rows, columns) {
         const pairs = [];
 
         for (const row of rows) {
@@ -415,51 +512,37 @@ const TesseractOCR = {
                 }
             }
 
-            // Sortiere innerhalb jeder Spalte nach X-Position
-            // Links (Arabisch RTL): Sortierung ist egal für Konkatenierung,
-            // Tesseract gibt RTL-Text bereits in Leserichtung aus
-            leftWords.sort((a, b) => a.bbox.x0 - b.bbox.x0);
-            rightWords.sort((a, b) => a.bbox.x0 - b.bbox.x0);
+            // ===== RTL-AWARE SORTIERUNG =====
+            // Arabische Spalte: X ABSTEIGEND (rechts → links = Leserichtung)
+            // Deutsche Spalte: X AUFSTEIGEND (links → rechts = Leserichtung)
+            const arWords = columns.arabicSide === 'left' ? leftWords : rightWords;
+            const deWords = columns.arabicSide === 'left' ? rightWords : leftWords;
 
-            const leftText = leftWords.map(w => w.text).join(' ').trim();
-            const rightText = rightWords.map(w => w.text).join(' ').trim();
+            // Arabisch: RTL = von rechts nach links lesen
+            arWords.sort((a, b) => b.bbox.x0 - a.bbox.x0);
+            // Deutsch: LTR = von links nach rechts lesen
+            deWords.sort((a, b) => a.bbox.x0 - b.bbox.x0);
 
-            // Überspringe leere Zeilen
-            if (!leftText && !rightText) continue;
-            if (!leftText || !rightText) {
-                console.log(`  ⚠️ Unvollständige Zeile: links="${leftText}" rechts="${rightText}"`);
+            const arText = arWords.map(w => w.text).join(' ').trim();
+            const deTextRaw = deWords.map(w => w.text).join(' ').trim();
+
+            // Überspringe leere/unvollständige Zeilen
+            if (!arText || !deTextRaw) {
+                if (arText || deTextRaw) {
+                    console.log(`  ⚠️ Unvollständig: AR="${arText}" DE="${deTextRaw}"`);
+                }
                 continue;
             }
 
-            // Weise AR/DE zu basierend auf erkanntem Layout
-            let arText, deText;
-            if (columns.arabicSide === 'left') {
-                arText = leftText;
-                deText = rightText;
-            } else {
-                arText = rightText;
-                deText = leftText;
-            }
-
-            // Zusätzliche Validierung: prüfe ob die Zuweisung stimmt
-            const arHasArabic = arabicRegex.test(arText);
-            const deHasArabic = arabicRegex.test(deText);
-
-            if (!arHasArabic && deHasArabic) {
-                // Spalten vertauscht → korrigieren
-                console.log(`  🔄 Spalten-Swap: "${arText}" ↔ "${deText}"`);
-                [arText, deText] = [deText, arText];
-            }
-
-            // Bereinige Deutsch
-            deText = deText
+            // Bereinige deutschen Text (entferne OCR-Artefakte)
+            const deText = deTextRaw
                 .replace(/[^a-zäöüßA-ZÄÖÜ\s\-\.]/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();
 
             if (deText.length >= 2 && arText.length > 0) {
                 pairs.push({ de: deText, ar: arText, ex: '' });
-                console.log(`  ✅ Paar: "${deText}" ↔ "${arText}"`);
+                console.log(`  ✅ Paar: "${deText}" ↔ "${arText}" [AR:RTL, DE:LTR]`);
             }
         }
 
@@ -471,6 +554,66 @@ const TesseractOCR = {
             seen.add(key);
             return true;
         });
+    },
+
+    // -----------------------------------------------------------------
+    //  QUALITÄTS-VALIDATION
+    //
+    //  Prüft ob die Paare konsistent sind:
+    //  - AR-Seite muss arabische Zeichen enthalten
+    //  - DE-Seite darf KEINE arabischen Zeichen enthalten
+    //  - Wenn >50% der Paare inkonsistent → Spalten tauschen
+    // -----------------------------------------------------------------
+    _validateQuality(pairs, rows, columns) {
+        if (pairs.length === 0) return pairs;
+
+        let correctCount = 0;
+        let swappedCount = 0;
+
+        for (const pair of pairs) {
+            const arHasArabic = this.ARABIC_REGEX.test(pair.ar);
+            const deHasArabic = this.ARABIC_REGEX.test(pair.de);
+            const deHasGerman = this.GERMAN_REGEX.test(pair.de);
+
+            if (arHasArabic && deHasGerman && !deHasArabic) {
+                correctCount++;
+            } else if (deHasArabic && !arHasArabic) {
+                swappedCount++;
+            }
+        }
+
+        console.log(`🔍 Qualitäts-Check: ${correctCount} korrekt, ${swappedCount} vertauscht von ${pairs.length}`);
+
+        // Wenn mehr als die Hälfte vertauscht → gesamte Zuordnung umdrehen
+        if (swappedCount > correctCount && swappedCount > pairs.length * 0.3) {
+            console.log('🔄 Qualitäts-Korrektur: Spalten werden getauscht!');
+            const swappedColumns = {
+                splitX: columns.splitX,
+                arabicSide: columns.germanSide,
+                germanSide: columns.arabicSide
+            };
+            return this._buildPairsRTL(rows, swappedColumns);
+        }
+
+        // Einzelne vertauschte Paare korrigieren
+        if (swappedCount > 0 && swappedCount <= correctCount) {
+            console.log(`🔄 Korrigiere ${swappedCount} einzelne vertauschte Paare`);
+            return pairs.map(pair => {
+                const arHasArabic = this.ARABIC_REGEX.test(pair.ar);
+                const deHasArabic = this.ARABIC_REGEX.test(pair.de);
+                if (!arHasArabic && deHasArabic) {
+                    return { de: pair.ar, ar: pair.de, ex: pair.ex };
+                }
+                return pair;
+            });
+        }
+
+        return pairs;
+    },
+
+    // Hilfsfunktion: Prüfe ob Wort-Array arabische Zeichen enthält
+    _hasArabic(words) {
+        return words.some(w => this.ARABIC_REGEX.test(w.text));
     }
 };
 
