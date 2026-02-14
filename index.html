@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. Shoaibs Lern-App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .phone-frame {
+            width: 100%;
+            max-width: 390px;
+            height: 844px;
+            background: #000;
+            border-radius: 50px;
+            padding: 15px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        }
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 40px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px 20px 20px;
+            text-align: center;
+        }
+        .header h1 { font-size: 24px; margin-bottom: 5px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .tab-bar {
+            display: flex;
+            background: white;
+            border-bottom: 2px solid #eee;
+        }
+        .tab {
+            flex: 1;
+            padding: 15px 5px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 12px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            color: #666;
+        }
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: bold;
+        }
+        .content {
+            display: none;
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .content.active { display: block; }
+        .category-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .category-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .category-card:hover {
+            border-color: #667eea;
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .category-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 5px;
+        }
+        .icon-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 26px;
+            height: 26px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .icon-btn.delete { background: #dc3545; }
+        .category-icon { font-size: 40px; margin-bottom: 10px; }
+        .category-name { font-weight: bold; color: #333; font-size: 15px; }
+        .category-count { font-size: 13px; color: #666; margin-top: 5px; }
+        .upload-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+        .upload-section h3 { margin-bottom: 10px; font-size: 18px; }
+        .upload-section p { font-size: 13px; opacity: 0.9; margin-bottom: 15px; }
+        .word-form {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+        .word-form h3 { color: #333; margin-bottom: 15px; font-size: 16px; }
+        .word-form input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+        .word-form input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .arabic-input {
+            font-family: 'Amiri', serif;
+            font-size: 18px;
+        }
+        .new-cat-box {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .new-cat-box p {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .pending-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            outline: 10px solid red !important;
+            box-shadow: 0 0 20px red !important;
+        }
+        .pending-word {
+            background: white;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .pending-word-text { flex: 1; }
+        .pending-word-text strong { color: #333; }
+        .pending-word-text .ar { font-family: 'Amiri', serif; font-size: 18px; color: #667eea; }
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+        }
+        .direction-box {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        .direction-option {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        .direction-option input { margin-right: 10px; }
+        .flashcard-container {
+            perspective: 1000px;
+            margin-bottom: 20px;
+        }
+        .flashcard {
+            position: relative;
+            width: 100%;
+            min-height: 350px;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            cursor: pointer;
+        }
+        .flashcard.flipped {
+            transform: rotateY(180deg);
+        }
+        .flashcard-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            min-height: 350px;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 30px;
+            border-radius: 20px;
+            color: white;
+        }
+        .flashcard-front {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .flashcard-back {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            transform: rotateY(180deg);
+        }
+        .flashcard-number { font-size: 14px; opacity: 0.8; margin-bottom: 20px; }
+        .flashcard-text {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+        .flashcard-text.ar {
+            font-family: 'Amiri', serif;
+            font-size: 42px;
+            line-height: 1.8;
+        }
+        .flashcard-example {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .flashcard-hint { margin-top: 20px; font-size: 13px; opacity: 0.9; }
+        .card-controls {
+            display: flex;
+            gap: 15px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #999;
+        }
+        .empty-icon { font-size: 64px; margin-bottom: 20px; }
+        .btn {
+            width: 100%;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-white {
+            background: white;
+            color: #667eea;
+        }
+        .btn-small {
+            padding: 10px 20px;
+            font-size: 13px;
+        }
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            font-size: 15px;
+            margin-bottom: 15px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 350px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .icon-picker {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .icon-option-picker {
+            font-size: 32px;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .icon-option-picker.selected {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        .hidden {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            position: absolute !important;
+            left: -9999px !important;
+        }
+        .debug-border {
+            border: 5px solid red !important;
+            background: yellow !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="screen">
+            <div class="header">
+                <h1>👨‍⚕️ Dr. Shoaibs Lern-App</h1>
+                <p>Deutsch ↔ Arabisch</p>
+            </div>
+            
+            <div class="tab-bar">
+                <div class="tab active" onclick="switchTab('categories')">📂 Kategorien</div>
+                <div class="tab" onclick="switchTab('upload')">📤 Upload</div>
+                <div class="tab" onclick="switchTab('learn')">📚 Lernen</div>
+            </div>
+            
+            <div id="categories" class="content active">
+                <button class="btn btn-primary btn-small" onclick="createNewCategory()">+ Neue Kategorie</button>
+                <div id="categoryGrid" class="category-grid"></div>
+            </div>
+            
+            <div id="upload" class="content">
+                <div class="upload-section">
+                    <h3>⚡ Deine 7 Verben</h3>
+                    <p>Aus deinem hochgeladenen Foto</p>
+                    <button class="btn btn-white" onclick="loadPhotoWords()">📸 Jetzt laden</button>
+                </div>
+                
+                <div class="word-form">
+                    <h3>✍️ Manuell hinzufügen</h3>
+                    <input type="text" id="germanWord" placeholder="Deutsches Wort">
+                    <input type="text" id="arabicWord" placeholder="Arabisches Wort" class="arabic-input">
+                    <input type="text" id="exampleText" placeholder="Beispiel (optional)">
+                    <button class="btn btn-primary" onclick="addWord()">➕ Hinzufügen</button>
+                </div>
+                
+                <div class="new-cat-box">
+                    <p>Neue Kategorie benötigt?</p>
+                    <button class="btn btn-secondary btn-small" onclick="quickCreateCategory()">➕ Neue Kategorie</button>
+                    <button class="btn btn-secondary btn-small" onclick="testButton()" style="margin-top: 10px; background: #ffeb3b;">🧪 TEST: Modal öffnen</button>
+                </div>
+                
+                <div id="pendingContainer" class="hidden">
+                    <div class="pending-box">
+                        <h3 style="margin-bottom: 15px;">📋 Bereit (<span id="pendingCount">0</span>)</h3>
+                        <div id="pendingList"></div>
+                        
+                        <div class="direction-box">
+                            <h4 style="margin-bottom: 10px; font-size: 14px;">Richtung:</h4>
+                            <label class="direction-option">
+                                <input type="radio" name="dir" value="de-ar" checked>
+                                <span>➡️ Deutsch → Arabisch (empfohlen)</span>
+                            </label>
+                            <label class="direction-option">
+                                <input type="radio" name="dir" value="ar-de">
+                                <span>⬅️ Arabisch → Deutsch</span>
+                            </label>
+                            <label class="direction-option">
+                                <input type="radio" name="dir" value="both">
+                                <span>🔄 Beides (2x so viele Karten)</span>
+                            </label>
+                        </div>
+                        
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Kategorie:</label>
+                        <select id="targetCat"></select>
+                        
+                        <button class="btn btn-success" onclick="createCards()" style="margin-top: 15px;">✅ Karten erstellen</button>
+                        <button class="btn btn-secondary" onclick="clearPendingManual()" style="margin-top: 10px; font-size: 13px;">🗑️ Liste leeren</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="learn" class="content">
+                <div id="learnArea">
+                    <div class="empty-state">
+                        <div class="empty-icon">📂</div>
+                        <div>Wähle eine Kategorie<br>im Kategorien-Tab!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: #333; margin-bottom: 20px;">📝 Kategorie bearbeiten</h3>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Name:</label>
+            <input type="text" id="editName" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #333;">Icon wählen:</label>
+            <div id="iconPicker" class="icon-picker"></div>
+            <button class="btn btn-primary" onclick="saveEdit()" style="margin-bottom: 10px;">✅ Speichern</button>
+            <button class="btn btn-secondary" onclick="closeEditModal()">Abbrechen</button>
+        </div>
+    </div>
+
+    <div id="newCatModal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: #333; margin-bottom: 20px;">➕ Neue Kategorie erstellen</h3>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Name:</label>
+            <input type="text" id="newCatName" placeholder="z.B. Kapitel 1, Verben, Medizin..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #333;">Icon wählen:</label>
+            <div id="newCatIconPicker" class="icon-picker"></div>
+            <button class="btn btn-primary" onclick="saveNewCat()" style="margin-bottom: 10px;">✅ Erstellen</button>
+            <button class="btn btn-secondary" onclick="closeNewCatModal()">Abbrechen</button>
+        </div>
+    </div>
+
+    <script>
+        let categories = JSON.parse(localStorage.getItem('cats')) || [
+            {id: 'verben', name: 'Verben', icon: '🏃'},
+            {id: 'nomen', name: 'Nomen', icon: '📝'},
+            {id: 'alltag', name: 'Alltag', icon: '🏠'}
+        ];
+        let cards = JSON.parse(localStorage.getItem('cards')) || [];
+        let pending = [];
+        let currentCat = null;
+        let currentCards = [];
+        let currentIdx = 0;
+        let flipped = false;
+        let editingCatId = null;
+        let selectedIcon = null;
+        let newCatSelectedIcon = null;
+        const availableIcons = ['📝','🏃','🏠','🍕','✈️','🏥','💼','🎓','⚽','🎵','📚','🌍','🎨','🔧','💊','🎯','🚗','📱','💡','🎪'];
+        
+        function save() {
+            localStorage.setItem('cats', JSON.stringify(categories));
+            localStorage.setItem('cards', JSON.stringify(cards));
+            console.log('💾 Gespeichert:', cards.length, 'Karten,', categories.length, 'Kategorien');
+        }
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tab).classList.add('active');
+            if (tab === 'categories') renderCategories();
+        }
+        
+        function renderCategories() {
+            const grid = document.getElementById('categoryGrid');
+            const sel = document.getElementById('targetCat');
+            grid.innerHTML = categories.map(cat => {
+                const count = cards.filter(c => c.cat === cat.id).length;
+                return `
+                    <div class="category-card" onclick="selectCat('${cat.id}')">
+                        <div class="category-actions" onclick="event.stopPropagation()">
+                            <button class="icon-btn" onclick="editCategory('${cat.id}')">✏️</button>
+                            <button class="icon-btn delete" onclick="deleteCategory('${cat.id}')">🗑️</button>
+                        </div>
+                        <div class="category-icon">${cat.icon}</div>
+                        <div class="category-name">${cat.name}</div>
+                        <div class="category-count">${count} Karten</div>
+                    </div>
+                `;
+            }).join('');
+            if (sel) {
+                sel.innerHTML = categories.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+            }
+        }
+        
+        function createNewCategory() {
+            openNewCatModal();
+        }
+        
+        function quickCreateCategory() {
+            openNewCatModal();
+        }
+        
+        function openNewCatModal() {
+            console.log('🟢 Öffne Neue-Kategorie-Modal');
+            
+            // Reset
+            document.getElementById('newCatName').value = '';
+            newCatSelectedIcon = availableIcons[0];
+            
+            // Render icon picker
+            const picker = document.getElementById('newCatIconPicker');
+            picker.innerHTML = availableIcons.map(icon => `
+                <div class="icon-option-picker ${icon === newCatSelectedIcon ? 'selected' : ''}" onclick="selectNewCatIcon('${icon}')" data-icon="${icon}">
+                    ${icon}
+                </div>
+            `).join('');
+            
+            document.getElementById('newCatModal').classList.add('active');
+        }
+        
+        function selectNewCatIcon(icon) {
+            newCatSelectedIcon = icon;
+            document.querySelectorAll('#newCatIconPicker .icon-option-picker').forEach(el => {
+                if (el.getAttribute('data-icon') === icon) {
+                    el.classList.add('selected');
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+        }
+        
+        function saveNewCat() {
+            const name = document.getElementById('newCatName').value.trim();
+            
+            if (!name) {
+                alert('⚠️ Bitte einen Namen eingeben!');
+                return;
+            }
+            
+            const newCat = {
+                id: 'cat_' + Date.now(),
+                name: name,
+                icon: newCatSelectedIcon
+            };
+            
+            console.log('✅ Erstelle Kategorie:', newCat);
+            
+            categories.push(newCat);
+            save();
+            renderCategories();
+            closeNewCatModal();
+            
+            alert('✅ Kategorie "' + name + '" wurde erstellt!');
+        }
+        
+        function closeNewCatModal() {
+            document.getElementById('newCatModal').classList.remove('active');
+        }
+        
+        function testButton() {
+            console.log('🟢 TEST: Öffne Modal direkt');
+            openNewCatModal();
+        }
+        
+        function editCategory(catId) {
+            const cat = categories.find(c => c.id === catId);
+            if (!cat) return;
+            editingCatId = catId;
+            selectedIcon = cat.icon;
+            document.getElementById('editName').value = cat.name;
+            const picker = document.getElementById('iconPicker');
+            picker.innerHTML = availableIcons.map(icon => `
+                <div class="icon-option-picker ${icon === selectedIcon ? 'selected' : ''}" onclick="selectEditIcon('${icon}')" data-icon="${icon}">
+                    ${icon}
+                </div>
+            `).join('');
+            document.getElementById('editModal').classList.add('active');
+        }
+        
+        function selectEditIcon(icon) {
+            selectedIcon = icon;
+            document.querySelectorAll('.icon-option-picker').forEach(el => {
+                if (el.getAttribute('data-icon') === icon) {
+                    el.classList.add('selected');
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+        }
+        
+        function saveEdit() {
+            const cat = categories.find(c => c.id === editingCatId);
+            if (!cat) return;
+            const newName = document.getElementById('editName').value.trim();
+            if (!newName) {
+                alert('⚠️ Bitte Namen eingeben!');
+                return;
+            }
+            cat.name = newName;
+            cat.icon = selectedIcon;
+            save();
+            renderCategories();
+            closeEditModal();
+            alert('✅ Kategorie aktualisiert!');
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            editingCatId = null;
+            selectedIcon = null;
+        }
+        
+        function deleteCategory(catId) {
+            const cat = categories.find(c => c.id === catId);
+            if (!cat) return;
+            const cardCount = cards.filter(c => c.cat === catId).length;
+            const msg = cardCount > 0 
+                ? `⚠️ ACHTUNG!\n\nKategorie "${cat.name}" enthält ${cardCount} Karten!\n\nWirklich löschen?`
+                : `Kategorie "${cat.name}" löschen?`;
+            if (!confirm(msg)) return;
+            categories = categories.filter(c => c.id !== catId);
+            cards = cards.filter(c => c.cat !== catId);
+            save();
+            renderCategories();
+            alert('✅ Kategorie gelöscht!' + (cardCount > 0 ? `\n${cardCount} Karten entfernt.` : ''));
+        }
+        
+        function selectCat(id) {
+            currentCat = id;
+            currentCards = cards.filter(c => c.cat === id);
+            currentIdx = 0;
+            flipped = false;
+            if (currentCards.length === 0) {
+                alert('📭 Keine Karten in dieser Kategorie!');
+                return;
+            }
+            document.querySelectorAll('.tab')[2].click();
+            showCard();
+        }
+        
+        function loadPhotoWords() {
+            console.log('loadPhotoWords aufgerufen');
+            pending = [
+                {de: 'glauben', ar: 'آمَنَ بِاللّه', ex: 'an Allah'},
+                {de: 'nehmen', ar: 'أَخَذَ هُ', ex: 'etwas'},
+                {de: 'geben', ar: 'أَعْطَى هُ/ه', ex: 'jm. etwas'},
+                {de: 'antworten', ar: 'أَجَابَ هُ', ex: 'jm.'},
+                {de: 'essen', ar: 'أَكَلَ هُ', ex: 'etwas'},
+                {de: 'kaufen', ar: 'اِشْتَرَى هُ', ex: 'etwas'},
+                {de: 'aufwachen', ar: 'اِسْتَيْقَظَ', ex: ''}
+            ];
+            console.log('Pending gefüllt:', pending.length, 'Wörter');
+            renderPending();
+        }
+        
+        function addWord() {
+            const de = document.getElementById('germanWord').value.trim();
+            const ar = document.getElementById('arabicWord').value.trim();
+            const ex = document.getElementById('exampleText').value.trim();
+            if (!de || !ar) {
+                alert('⚠️ Deutsch + Arabisch ausfüllen!');
+                return;
+            }
+            pending.push({de, ar, ex});
+            document.getElementById('germanWord').value = '';
+            document.getElementById('arabicWord').value = '';
+            document.getElementById('exampleText').value = '';
+            renderPending();
+        }
+        
+        function removeWord(i) {
+            pending.splice(i, 1);
+            renderPending();
+        }
+        
+        function renderPending() {
+            console.log('🔵 renderPending aufgerufen, pending.length:', pending.length);
+            
+            const cont = document.getElementById('pendingContainer');
+            const list = document.getElementById('pendingList');
+            const count = document.getElementById('pendingCount');
+            
+            console.log('🔵 Container-Element gefunden:', cont !== null);
+            console.log('🔵 Container classList VOR:', cont.className);
+            
+            if (pending.length === 0) {
+                console.log('🔵 Pending ist leer, verstecke Container');
+                
+                // MEHRFACH-VERSTECKEN für absolute Sicherheit
+                cont.classList.add('hidden');
+                cont.style.display = 'none';
+                cont.style.visibility = 'hidden';
+                cont.style.opacity = '0';
+                cont.style.height = '0';
+                cont.style.overflow = 'hidden';
+                cont.style.position = 'absolute';
+                cont.style.left = '-9999px';
+                cont.setAttribute('hidden', 'true');
+                
+                console.log('🔵 Container classList NACH:', cont.className);
+                console.log('🔵 Container style.display:', cont.style.display);
+                console.log('🔵 Container hidden attribute:', cont.getAttribute('hidden'));
+                console.log('🔵 Container hat jetzt "hidden" Klasse:', cont.classList.contains('hidden'));
+                
+                // EXTREME DEBUG: Zeige was im DOM ist
+                console.log('🔵 Container HTML:', cont.outerHTML.substring(0, 200));
+                
+                return;
+            }
+            
+            console.log('🔵 Pending hat', pending.length, 'Wörter, zeige Container');
+            cont.classList.remove('hidden');
+            cont.style.display = '';
+            cont.style.visibility = '';
+            cont.style.opacity = '';
+            cont.style.height = '';
+            cont.style.overflow = '';
+            cont.style.position = '';
+            cont.style.left = '';
+            cont.removeAttribute('hidden');
+            
+            count.textContent = pending.length;
+            list.innerHTML = pending.map((w, i) => `
+                <div class="pending-word">
+                    <div class="pending-word-text">
+                        <strong>${w.de}</strong> → <strong class="ar">${w.ar}</strong>
+                        ${w.ex ? `<div style="font-size: 12px; color: #666; margin-top: 3px;">💡 ${w.ex}</div>` : ''}
+                    </div>
+                    <button class="remove-btn" onclick="removeWord(${i})">×</button>
+                </div>
+            `).join('');
+            console.log('🔵 Liste gerendert mit', pending.length, 'Einträgen');
+        }
+        
+        function createCards() {
+            console.log('🟡 createCards aufgerufen');
+            console.log('🟡 Pending VOR Erstellen:', pending.length, 'Wörter');
+            
+            const catId = document.getElementById('targetCat').value;
+            const dir = document.querySelector('input[name="dir"]:checked').value;
+            
+            if (!catId) {
+                alert('⚠️ Bitte Kategorie wählen!');
+                return;
+            }
+            if (pending.length === 0) {
+                alert('⚠️ Keine Wörter zum Erstellen!');
+                return;
+            }
+            
+            let created = 0;
+            pending.forEach(w => {
+                if (dir === 'both' || dir === 'de-ar') {
+                    cards.push({
+                        front: w.de, back: w.ar,
+                        frontLang: 'de', backLang: 'ar',
+                        ex: w.ex, cat: catId
+                    });
+                    created++;
+                }
+                if (dir === 'both' || dir === 'ar-de') {
+                    cards.push({
+                        front: w.ar, back: w.de,
+                        frontLang: 'ar', backLang: 'de',
+                        ex: w.ex, cat: catId
+                    });
+                    created++;
+                }
+            });
+            
+            save();
+            console.log('✅ Erstellt:', created, 'Karten. Total:', cards.length);
+            
+            // WICHTIG: Pending leeren - DOPPELT sicherstellen!
+            console.log('🟡 Pending VOR Leeren:', pending.length);
+            pending.length = 0; // Alternative Methode 1
+            pending.splice(0, pending.length); // Alternative Methode 2
+            pending = []; // Alternative Methode 3
+            console.log('🟡 Pending NACH Leeren:', pending.length);
+            console.log('🟡 Rufe renderPending() auf...');
+            
+            renderPending();
+            
+            console.log('🟡 renderPending() abgeschlossen');
+            
+            renderCategories();
+            
+            const cat = categories.find(c => c.id === catId);
+            alert(`✅ ${created} Karten erstellt!\n\n📂 ${cat.name}\n📊 Gesamt: ${cards.length} Karten\n\n💡 Liste wurde geleert!\n\nGehe zu Kategorien → ${cat.name}`);
+        }
+        
+        function clearPendingManual() {
+            console.log('🔴 MANUELLES LEEREN - Pending vorher:', pending.length);
+            pending.length = 0;
+            pending.splice(0, pending.length);
+            pending = [];
+            console.log('🔴 MANUELLES LEEREN - Pending nachher:', pending.length);
+            renderPending();
+            alert('✅ Liste wurde geleert!');
+        }
+        
+        function showCard() {
+            const card = currentCards[currentIdx];
+            const cat = categories.find(c => c.id === currentCat);
+            
+            document.getElementById('learnArea').innerHTML = `
+                <div class="flashcard-container">
+                    <div class="flashcard ${flipped ? 'flipped' : ''}" id="flashcardEl" onclick="flip()">
+                        <div class="flashcard-face flashcard-front">
+                            <div class="flashcard-number">${cat.icon} ${cat.name} - ${currentIdx + 1}/${currentCards.length}</div>
+                            <div class="flashcard-text ${card.frontLang === 'ar' ? 'ar' : ''}" style="text-align: center;">
+                                ${card.front}
+                            </div>
+                            <div class="flashcard-hint">👆 Tap zum Umdrehen</div>
+                        </div>
+                        <div class="flashcard-face flashcard-back">
+                            <div class="flashcard-number">${cat.icon} ${cat.name} - ${currentIdx + 1}/${currentCards.length}</div>
+                            <div class="flashcard-text ${card.backLang === 'ar' ? 'ar' : ''}" style="text-align: center;">
+                                ${card.back}
+                            </div>
+                            ${card.ex ? `<div class="flashcard-example">💡 ${card.ex}</div>` : ''}
+                            <div class="flashcard-hint">👆 Tap zum Zurückdrehen</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-controls">
+                    <button class="btn btn-secondary" onclick="prev()" ${currentIdx === 0 ? 'disabled' : ''}>← Zurück</button>
+                    <button class="btn btn-primary" onclick="next()">Weiter →</button>
+                </div>
+            `;
+        }
+        
+        function flip() {
+            flipped = !flipped;
+            const el = document.getElementById('flashcardEl');
+            if (flipped) {
+                el.classList.add('flipped');
+            } else {
+                el.classList.remove('flipped');
+            }
+        }
+        
+        function next() {
+            if (currentIdx < currentCards.length - 1) {
+                currentIdx++;
+                flipped = false;
+                showCard();
+            } else {
+                alert('🎉 Alle Karten durch!');
+            }
+        }
+        
+        function prev() {
+            if (currentIdx > 0) {
+                currentIdx--;
+                flipped = false;
+                showCard();
+            }
+        }
+        
+        renderCategories();
+        console.log('✅ App gestartet');
+        console.log('📊 Kategorien:', categories.length);
+        console.log('📚 Karten:', cards.length);
+    </script>
+</body>
+</html>
