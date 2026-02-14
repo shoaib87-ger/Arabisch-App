@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dr-shoaibs-app-v1';
+const CACHE_NAME = 'dr-shoaibs-app-v2-FINAL';
 const urlsToCache = [
   './',
   './index.html',

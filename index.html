@@ -169,8 +169,6 @@
             padding: 20px;
             border-radius: 15px;
             margin-bottom: 20px;
-            outline: 10px solid red !important;
-            box-shadow: 0 0 20px red !important;
         }
         .pending-word {
             background: white;
@@ -407,7 +405,6 @@
                 <div class="new-cat-box">
                     <p>Neue Kategorie benötigt?</p>
                     <button class="btn btn-secondary btn-small" onclick="quickCreateCategory()">➕ Neue Kategorie</button>
-                    <button class="btn btn-secondary btn-small" onclick="testButton()" style="margin-top: 10px; background: #ffeb3b;">🧪 TEST: Modal öffnen</button>
                 </div>
                 
                 <div id="pendingContainer" class="hidden">
@@ -435,7 +432,6 @@
                         <select id="targetCat"></select>
                         
                         <button class="btn btn-success" onclick="createCards()" style="margin-top: 15px;">✅ Karten erstellen</button>
-                        <button class="btn btn-secondary" onclick="clearPendingManual()" style="margin-top: 10px; font-size: 13px;">🗑️ Liste leeren</button>
                     </div>
                 </div>
             </div>
@@ -710,51 +706,20 @@
         }
         
         function renderPending() {
-            console.log('🔵 renderPending aufgerufen, pending.length:', pending.length);
-            
             const cont = document.getElementById('pendingContainer');
             const list = document.getElementById('pendingList');
             const count = document.getElementById('pendingCount');
             
-            console.log('🔵 Container-Element gefunden:', cont !== null);
-            console.log('🔵 Container classList VOR:', cont.className);
-            
             if (pending.length === 0) {
-                console.log('🔵 Pending ist leer, verstecke Container');
-                
-                // MEHRFACH-VERSTECKEN für absolute Sicherheit
+                // VERSTECKEN - mehrere Methoden für absolute Sicherheit
                 cont.classList.add('hidden');
                 cont.style.display = 'none';
-                cont.style.visibility = 'hidden';
-                cont.style.opacity = '0';
-                cont.style.height = '0';
-                cont.style.overflow = 'hidden';
-                cont.style.position = 'absolute';
-                cont.style.left = '-9999px';
-                cont.setAttribute('hidden', 'true');
-                
-                console.log('🔵 Container classList NACH:', cont.className);
-                console.log('🔵 Container style.display:', cont.style.display);
-                console.log('🔵 Container hidden attribute:', cont.getAttribute('hidden'));
-                console.log('🔵 Container hat jetzt "hidden" Klasse:', cont.classList.contains('hidden'));
-                
-                // EXTREME DEBUG: Zeige was im DOM ist
-                console.log('🔵 Container HTML:', cont.outerHTML.substring(0, 200));
-                
                 return;
             }
             
-            console.log('🔵 Pending hat', pending.length, 'Wörter, zeige Container');
+            // ZEIGEN
             cont.classList.remove('hidden');
-            cont.style.display = '';
-            cont.style.visibility = '';
-            cont.style.opacity = '';
-            cont.style.height = '';
-            cont.style.overflow = '';
-            cont.style.position = '';
-            cont.style.left = '';
-            cont.removeAttribute('hidden');
-            
+            cont.style.display = 'block';
             count.textContent = pending.length;
             list.innerHTML = pending.map((w, i) => `
                 <div class="pending-word">
@@ -765,13 +730,9 @@
                     <button class="remove-btn" onclick="removeWord(${i})">×</button>
                 </div>
             `).join('');
-            console.log('🔵 Liste gerendert mit', pending.length, 'Einträgen');
         }
         
         function createCards() {
-            console.log('🟡 createCards aufgerufen');
-            console.log('🟡 Pending VOR Erstellen:', pending.length, 'Wörter');
-            
             const catId = document.getElementById('targetCat').value;
             const dir = document.querySelector('input[name="dir"]:checked').value;
             
@@ -805,34 +766,15 @@
             });
             
             save();
-            console.log('✅ Erstellt:', created, 'Karten. Total:', cards.length);
             
-            // WICHTIG: Pending leeren - DOPPELT sicherstellen!
-            console.log('🟡 Pending VOR Leeren:', pending.length);
-            pending.length = 0; // Alternative Methode 1
-            pending.splice(0, pending.length); // Alternative Methode 2
-            pending = []; // Alternative Methode 3
-            console.log('🟡 Pending NACH Leeren:', pending.length);
-            console.log('🟡 Rufe renderPending() auf...');
+            // Pending leeren
+            pending = [];
             
             renderPending();
-            
-            console.log('🟡 renderPending() abgeschlossen');
-            
             renderCategories();
             
             const cat = categories.find(c => c.id === catId);
-            alert(`✅ ${created} Karten erstellt!\n\n📂 ${cat.name}\n📊 Gesamt: ${cards.length} Karten\n\n💡 Liste wurde geleert!\n\nGehe zu Kategorien → ${cat.name}`);
-        }
-        
-        function clearPendingManual() {
-            console.log('🔴 MANUELLES LEEREN - Pending vorher:', pending.length);
-            pending.length = 0;
-            pending.splice(0, pending.length);
-            pending = [];
-            console.log('🔴 MANUELLES LEEREN - Pending nachher:', pending.length);
-            renderPending();
-            alert('✅ Liste wurde geleert!');
+            alert(`✅ ${created} Karten erstellt!\n\n📂 ${cat.name}\n📊 Gesamt: ${cards.length} Karten\n\nGehe zu Kategorien → ${cat.name}`);
         }
         
         function showCard() {
