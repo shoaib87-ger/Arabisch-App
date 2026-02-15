@@ -1,6 +1,7 @@
 /**
  * quran-reader.js — Quran PDF Reader mit Buch-Effekt
  * Features: Canvas-Rendering, Swipe, Page-Flip, Resume, Preloading
+ * PDF Source: assets/quran_ar_de_v2.pdf (fetched, not base64)
  */
 
 const QuranReader = {
@@ -19,6 +20,9 @@ const QuranReader = {
     // Render generation counter — prevents race conditions
     renderGeneration: 0,
     currentRenderTask: null,
+
+    // PDF URL
+    PDF_URL: 'assets/quran_ar_de_v2.pdf',
 
     /**
      * Clone a canvas WITH its pixel data (cloneNode does NOT copy pixels)
@@ -52,16 +56,15 @@ const QuranReader = {
 
         try {
             if (!this.pdf) {
-                // Decode embedded base64 PDF data (no fetch needed, works offline + file://)
-                this.showLoading('📖 Quran wird dekodiert...');
-                const binaryStr = atob(QURAN_PDF_BASE64);
-                const bytes = new Uint8Array(binaryStr.length);
-                for (let i = 0; i < binaryStr.length; i++) {
-                    bytes[i] = binaryStr.charCodeAt(i);
-                }
-                const loadingTask = pdfjsLib.getDocument({ data: bytes });
+                // Fetch PDF file directly (network-first via service worker)
+                this.showLoading('📖 Quran wird geladen...');
+                const loadingTask = pdfjsLib.getDocument(this.PDF_URL);
                 this.pdf = await loadingTask.promise;
                 this.totalPages = this.pdf.numPages;
+                console.log(`✅ Quran PDF loaded: ${this.totalPages} pages`);
+
+                // Sanity check: validate known page references
+                this._sanityCheck();
             }
 
             await this.renderPage(this.currentPage);
@@ -69,6 +72,28 @@ const QuranReader = {
         } catch (err) {
             console.error('❌ Quran Load Error:', err);
             this.showError('Fehler beim Laden des Quran');
+        }
+    },
+
+    /**
+     * Sanity check: verify expected page numbers match totalPages
+     */
+    _sanityCheck() {
+        const checks = [
+            { name: 'al-Fatiha', expected: 29 },
+            { name: 'al-Baqara', expected: 30 },
+            { name: 'an-Nas', expected: 1234 }
+        ];
+        for (const c of checks) {
+            if (c.expected > this.totalPages) {
+                console.warn(`⚠️ SANITY CHECK FAILED: ${c.name} erwartet Seite ${c.expected}, aber PDF hat nur ${this.totalPages} Seiten!`);
+            } else {
+                console.log(`✅ Sanity OK: ${c.name} → Seite ${c.expected} (totalPages=${this.totalPages})`);
+            }
+        }
+        // Additional: warn if totalPages is suspiciously low
+        if (this.totalPages < 1234) {
+            console.warn(`⚠️ WARNUNG: PDF hat nur ${this.totalPages} Seiten — erwartet mindestens 1234 (an-Nas).`);
         }
     },
 
@@ -338,18 +363,36 @@ const QuranReader = {
 
     // ===== TABLE OF CONTENTS =====
     tocData: null,
-    tocActiveTab: 'surah',
+    tocActiveTab: 'surahs',
 
-    /** Load TOC data from JSON file */
+    /**
+     * Load TOC data from JSON file and normalize all entries to use `startPage`
+     */
     async loadTOC() {
         if (this.tocData) return this.tocData;
         try {
             const resp = await fetch('data/quran_toc.json');
             if (!resp.ok) throw new Error('fetch failed');
-            this.tocData = await resp.json();
+            const raw = await resp.json();
+
+            // === TOC NORMALIZER ===
+            // Map sections.pdfPage → startPage, surahs.page → startPage
+            const sections = (raw.sections || []).map(item => ({
+                title: item.title,
+                startPage: item.pdfPage
+            }));
+
+            const surahs = (raw.surahs || []).map(item => ({
+                id: item.id,
+                title: item.title,
+                startPage: item.page
+            }));
+
+            this.tocData = { sections, surahs };
+            console.log(`✅ TOC loaded: ${sections.length} Abschnitte, ${surahs.length} Suren`);
         } catch (e) {
-            console.warn('⚠️ TOC JSON fetch failed');
-            this.tocData = { juz: [], surahs: [] };
+            console.warn('⚠️ TOC JSON fetch failed:', e);
+            this.tocData = { sections: [], surahs: [] };
         }
         return this.tocData;
     },
@@ -357,11 +400,11 @@ const QuranReader = {
     /** Open the TOC bottom sheet */
     async openTOC() {
         await this.loadTOC();
-        this.tocActiveTab = 'surah';
+        this.tocActiveTab = 'surahs';
         const sheet = document.getElementById('quranTocSheet');
         sheet.classList.add('active');
         sheet.querySelectorAll('.toc-tab').forEach(t => {
-            t.classList.toggle('active', t.dataset.tab === 'surah');
+            t.classList.toggle('active', t.dataset.tab === 'surahs');
         });
         const searchInput = document.getElementById('tocSearchInput');
         if (searchInput) searchInput.value = '';
@@ -374,7 +417,7 @@ const QuranReader = {
         document.getElementById('quranTocSheet').classList.remove('active');
     },
 
-    /** Switch between Juz and Surah tabs */
+    /** Switch between Abschnitte and Suren tabs */
     switchTocTab(tab) {
         this.tocActiveTab = tab;
         const sheet = document.getElementById('quranTocSheet');
@@ -391,19 +434,18 @@ const QuranReader = {
         this.renderTocList();
     },
 
-    /** Render the TOC list */
+    /** Render the TOC list (surahs only) */
     renderTocList() {
         const list = document.getElementById('tocList');
         if (!list || !this.tocData) return;
 
         const query = (document.getElementById('tocSearchInput')?.value || '').toLowerCase().trim();
-        const isJuz = this.tocActiveTab === 'juz';
-        const items = isJuz ? this.tocData.juz : this.tocData.surahs;
+        const items = this.tocData.surahs;
 
         const filtered = items.filter(item => {
             if (!query) return true;
             const idStr = String(item.id);
-            const name = (isJuz ? item.label : item.title).toLowerCase();
+            const name = item.title.toLowerCase();
             return idStr.startsWith(query) || name.includes(query);
         });
 
@@ -413,12 +455,10 @@ const QuranReader = {
         }
 
         list.innerHTML = filtered.map(item => {
-            const label = isJuz
-                ? `<span class="toc-item-id">${item.id}</span><span class="toc-item-name">${item.label}</span>`
-                : `<span class="toc-item-id">${item.id}</span><span class="toc-item-name">${item.title}</span>`;
-            const isActive = this._isCurrentEntry(item, isJuz);
+            const label = `<span class="toc-item-id">${item.id}</span><span class="toc-item-name">${item.title}</span>`;
+            const isActive = this._isCurrentEntry(item);
             return `
-                <button class="toc-item ${isActive ? 'active' : ''}" onclick="QuranReader.tocJumpToPage(${item.startPage})">
+                <button class="toc-item ${isActive ? 'active' : ''}" ontouchstart="" onclick="QuranReader.tocTap(this, ${item.startPage})">
                     <div class="toc-item-left">${label}</div>
                     <span class="toc-item-page">S. ${item.startPage}</span>
                 </button>
@@ -431,10 +471,9 @@ const QuranReader = {
         });
     },
 
-    /** Check if entry is current based on currentPage */
-    _isCurrentEntry(item, isJuz) {
-        const entries = isJuz ? this.tocData.juz : this.tocData.surahs;
-        const sorted = [...entries].sort((a, b) => a.startPage - b.startPage);
+    /** Check if surah entry is current based on currentPage */
+    _isCurrentEntry(item) {
+        const sorted = [...this.tocData.surahs].sort((a, b) => a.startPage - b.startPage);
         let current = null;
         for (const e of sorted) {
             if (e.startPage <= this.currentPage) current = e;
@@ -443,9 +482,20 @@ const QuranReader = {
         return current && current.id === item.id;
     },
 
-    /** Close TOC and jump to page */
+    /** Close TOC and jump to page (legacy) */
     tocJumpToPage(pageNum) {
         this.closeTOC();
         this.goToPage(pageNum);
+    },
+
+    /** Tap handler with visual feedback for iOS */
+    tocTap(el, pageNum) {
+        // Add visual tapped state
+        el.classList.add('tapped');
+        // Wait for visual feedback, then navigate
+        setTimeout(() => {
+            this.closeTOC();
+            this.goToPage(pageNum);
+        }, 150);
     }
 };

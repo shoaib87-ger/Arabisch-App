@@ -203,26 +203,28 @@ function renderCategories() {
 
         return `
             <div class="category-card" onclick="selectGroup('${cat.id}')">
-                <div class="category-actions" onclick="event.stopPropagation()">
-                    <button class="icon-btn" onclick="exportCSV('${cat.id}')" aria-label="Exportieren" title="CSV Export">📤</button>
-                    <button class="icon-btn" onclick="editCategory('${cat.id}')" aria-label="Bearbeiten">✏️</button>
-                    <button class="icon-btn delete" onclick="deleteCategory('${cat.id}')" aria-label="Löschen">🗑️</button>
+                <div class="category-card-body">
+                    <div class="category-icon">${cat.icon}</div>
+                    <div class="category-name">${escapeHtml(cat.name)}</div>
+                    <div class="category-count">${count} Karten${subCount > 0 ? ` · ${subCount} Einheiten` : ''}</div>
+                    ${count > 0 ? `
+                        <div class="category-progress">
+                            <svg class="progress-ring" viewBox="0 0 36 36">
+                                <circle class="progress-ring-bg" cx="18" cy="18" r="14" />
+                                <circle class="progress-ring-fill" cx="18" cy="18" r="14"
+                                    stroke-dasharray="${circumference}"
+                                    stroke-dashoffset="${offset}" />
+                            </svg>
+                            <div class="category-progress-text">${prog.pct}%</div>
+                        </div>
+                    ` : ''}
+                    ${isGroup ? '<div class="group-badge">📂</div>' : ''}
                 </div>
-                <div class="category-icon">${cat.icon}</div>
-                <div class="category-name">${escapeHtml(cat.name)}</div>
-                <div class="category-count">${count} Karten${subCount > 0 ? ` · ${subCount} Einheiten` : ''}</div>
-                ${count > 0 ? `
-                    <div class="category-progress">
-                        <svg class="progress-ring" viewBox="0 0 36 36">
-                            <circle class="progress-ring-bg" cx="18" cy="18" r="14" />
-                            <circle class="progress-ring-fill" cx="18" cy="18" r="14"
-                                stroke-dasharray="${circumference}"
-                                stroke-dashoffset="${offset}" />
-                        </svg>
-                        <div class="category-progress-text">${prog.pct}%</div>
-                    </div>
-                ` : ''}
-                ${isGroup ? '<div class="group-badge">📂</div>' : ''}
+                <div class="category-actions" onclick="event.stopPropagation()">
+                    <button class="icon-btn" onclick="editCategory('${cat.id}')" aria-label="Bearbeiten" title="Bearbeiten">✏️</button>
+                    <button class="icon-btn" onclick="exportCSV('${cat.id}')" aria-label="Exportieren" title="CSV Export">📥</button>
+                    <button class="icon-btn delete" onclick="deleteCategory('${cat.id}')" aria-label="Löschen" title="Löschen">🗑️</button>
+                </div>
             </div>
         `;
     }).join('');
@@ -1451,6 +1453,12 @@ function renderIslamTab() {
                 <div class="islam-card-name">Qibla Finder</div>
                 <div class="islam-card-ar">اتجاه القبلة</div>
                 <div class="islam-card-subtitle">Kompass → Mekka</div>
+            </div>
+            <div class="islam-card" onclick="EbookUI.open()">
+                <div class="islam-card-icon">📚</div>
+                <div class="islam-card-name">Ebook Reader</div>
+                <div class="islam-card-ar">قارئ الكتب</div>
+                <div class="islam-card-subtitle">EPUB · PDF · TXT · HTML</div>
             </div>
         </div>
     `;

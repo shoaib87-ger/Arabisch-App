@@ -179,12 +179,7 @@
             <div class="toc-sheet-backdrop" onclick="QuranReader.closeTOC()"></div>
             <div class="toc-sheet-panel">
                 <div class="toc-sheet-handle" onclick="QuranReader.closeTOC()"><span></span></div>
-                <h3 class="toc-sheet-title">📑 Inhaltsverzeichnis</h3>
-                <div class="toc-tabs">
-                    <button class="toc-tab active" data-tab="surah"
-                        onclick="QuranReader.switchTocTab('surah')">Surah</button>
-                    <button class="toc-tab" data-tab="juz" onclick="QuranReader.switchTocTab('juz')">Juz</button>
-                </div>
+                <h3 class="toc-sheet-title">📑 Suren</h3>
                 <div class="toc-search">
                     <input type="text" id="tocSearchInput" class="toc-search-input"
                         placeholder="🔍 Suche (Nr. oder Name)..." oninput="QuranReader.filterTOC()" autocomplete="off">
@@ -230,16 +225,36 @@
         </div>
     </div>
 
+    <!-- ===== EBOOK READER OVERLAY ===== -->
+    <div id="ebookOverlay" class="ebook-overlay">
+        <div class="ebook-header" id="ebookHeader">
+            <button class="ebook-back-btn" onclick="EbookUI.close()">‹ Zurück</button>
+            <span class="ebook-title">📚 Meine Bücher</span>
+            <div style="width:40px;"></div>
+        </div>
+        <div class="ebook-content" id="ebookContent"></div>
+        <div class="ebook-footer hidden" id="ebookFooter"></div>
+    </div>
+
     <!-- Scripts -->
     <script src="preprocessing.js"></script>
     <script src="ocr.js"></script>
     <script src="pdf-handler.js"></script>
     <script src="stats.js"></script>
     <script src="quiz.js"></script>
-    <script src="quran-data.js"></script>
+    <!-- quran-data.js removed — PDF loaded via fetch from assets/quran_ar_de_v2.pdf -->
     <script src="quran-reader.js"></script>
     <script src="qibla-finder.js"></script>
     <script src="prayer-times.js"></script>
+    <!-- Ebook Reader libs (local, pinned) -->
+    <script src="lib/jszip.min.js"></script>
+    <script src="lib/epub.min.js"></script>
+    <script src="lib/purify.min.js"></script>
+    <!-- Ebook Reader modules -->
+    <script src="ebook-storage.js"></script>
+    <script src="ebook-detect.js"></script>
+    <script src="ebook-readers.js"></script>
+    <script src="ebook-ui.js"></script>
     <script src="app.js"></script>
 </body>
 

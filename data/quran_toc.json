@@ -1,726 +1,574 @@
 {
-    "juz": [
-        {
-            "id": 1,
-            "label": "1. Teil",
-            "startPage": 17
-        },
-        {
-            "id": 2,
-            "label": "2. Teil",
-            "startPage": 36
-        },
-        {
-            "id": 3,
-            "label": "3. Teil",
-            "startPage": 51
-        },
-        {
-            "id": 4,
-            "label": "4. Teil",
-            "startPage": 75
-        },
-        {
-            "id": 5,
-            "label": "5. Teil",
-            "startPage": 99
-        },
-        {
-            "id": 6,
-            "label": "6. Teil",
-            "startPage": 121
-        },
-        {
-            "id": 7,
-            "label": "7. Teil",
-            "startPage": 145
-        },
-        {
-            "id": 8,
-            "label": "8. Teil",
-            "startPage": 169
-        },
-        {
-            "id": 9,
-            "label": "9. Teil",
-            "startPage": 195
-        },
-        {
-            "id": 10,
-            "label": "10. Teil",
-            "startPage": 221
-        },
-        {
-            "id": 11,
-            "label": "11. Teil",
-            "startPage": 246
-        },
-        {
-            "id": 12,
-            "label": "12. Teil",
-            "startPage": 271
-        },
-        {
-            "id": 13,
-            "label": "13. Teil",
-            "startPage": 297
-        },
-        {
-            "id": 14,
-            "label": "14. Teil",
-            "startPage": 322
-        },
-        {
-            "id": 15,
-            "label": "15. Teil",
-            "startPage": 348
-        },
-        {
-            "id": 16,
-            "label": "16. Teil",
-            "startPage": 373
-        },
-        {
-            "id": 17,
-            "label": "17. Teil",
-            "startPage": 398
-        },
-        {
-            "id": 18,
-            "label": "18. Teil",
-            "startPage": 423
-        },
-        {
-            "id": 19,
-            "label": "19. Teil",
-            "startPage": 449
-        },
-        {
-            "id": 20,
-            "label": "20. Teil",
-            "startPage": 475
-        },
-        {
-            "id": 21,
-            "label": "21. Teil",
-            "startPage": 500
-        },
-        {
-            "id": 22,
-            "label": "22. Teil",
-            "startPage": 525
-        },
-        {
-            "id": 23,
-            "label": "23. Teil",
-            "startPage": 550
-        },
-        {
-            "id": 24,
-            "label": "24. Teil",
-            "startPage": 575
-        },
-        {
-            "id": 25,
-            "label": "25. Teil",
-            "startPage": 600
-        },
-        {
-            "id": 26,
-            "label": "26. Teil",
-            "startPage": 625
-        },
-        {
-            "id": 27,
-            "label": "27. Teil",
-            "startPage": 650
-        },
-        {
-            "id": 28,
-            "label": "28. Teil",
-            "startPage": 675
-        },
-        {
-            "id": 29,
-            "label": "29. Teil",
-            "startPage": 700
-        },
-        {
-            "id": 30,
-            "label": "30. Teil",
-            "startPage": 725
-        }
-    ],
-    "surahs": [
-        {
-            "id": 1,
-            "title": "al-Fatiha",
-            "startPage": 17
-        },
-        {
-            "id": 2,
-            "title": "al-Baqara",
-            "startPage": 18
-        },
-        {
-            "id": 3,
-            "title": "Al Imran",
-            "startPage": 75
-        },
-        {
-            "id": 4,
-            "title": "an-Nisa'",
-            "startPage": 107
-        },
-        {
-            "id": 5,
-            "title": "al-Ma'ida",
-            "startPage": 142
-        },
-        {
-            "id": 6,
-            "title": "al-An'am",
-            "startPage": 168
-        },
-        {
-            "id": 7,
-            "title": "al-A'raf",
-            "startPage": 196
-        },
-        {
-            "id": 8,
-            "title": "al-Anfal",
-            "startPage": 229
-        },
-        {
-            "id": 9,
-            "title": "at-Tauba",
-            "startPage": 242
-        },
-        {
-            "id": 10,
-            "title": "Yunus",
-            "startPage": 267
-        },
-        {
-            "id": 11,
-            "title": "Hud",
-            "startPage": 284
-        },
-        {
-            "id": 12,
-            "title": "Yusuf",
-            "startPage": 303
-        },
-        {
-            "id": 13,
-            "title": "ar-Ra'd",
-            "startPage": 320
-        },
-        {
-            "id": 14,
-            "title": "Ibrahim",
-            "startPage": 328
-        },
-        {
-            "id": 15,
-            "title": "al-Higr",
-            "startPage": 336
-        },
-        {
-            "id": 16,
-            "title": "an-Nahl",
-            "startPage": 344
-        },
-        {
-            "id": 17,
-            "title": "Bani Israil",
-            "startPage": 362
-        },
-        {
-            "id": 18,
-            "title": "al-Kahf",
-            "startPage": 378
-        },
-        {
-            "id": 19,
-            "title": "Maryam",
-            "startPage": 394
-        },
-        {
-            "id": 20,
-            "title": "Ta-Ha",
-            "startPage": 405
-        },
-        {
-            "id": 21,
-            "title": "al-Anbiya'",
-            "startPage": 419
-        },
-        {
-            "id": 22,
-            "title": "al-Hagg",
-            "startPage": 432
-        },
-        {
-            "id": 23,
-            "title": "al-Mu'minun",
-            "startPage": 444
-        },
-        {
-            "id": 24,
-            "title": "an-Nur",
-            "startPage": 455
-        },
-        {
-            "id": 25,
-            "title": "al-Furqan",
-            "startPage": 467
-        },
-        {
-            "id": 26,
-            "title": "as-Su'ara'",
-            "startPage": 476
-        },
-        {
-            "id": 27,
-            "title": "an-Naml",
-            "startPage": 492
-        },
-        {
-            "id": 28,
-            "title": "al-Qasas",
-            "startPage": 504
-        },
-        {
-            "id": 29,
-            "title": "al-'Ankabut",
-            "startPage": 518
-        },
-        {
-            "id": 30,
-            "title": "ar-Rum",
-            "startPage": 528
-        },
-        {
-            "id": 31,
-            "title": "Luqman",
-            "startPage": 536
-        },
-        {
-            "id": 32,
-            "title": "as-Sagda",
-            "startPage": 541
-        },
-        {
-            "id": 33,
-            "title": "al-Ahzab",
-            "startPage": 545
-        },
-        {
-            "id": 34,
-            "title": "Saba'",
-            "startPage": 558
-        },
-        {
-            "id": 35,
-            "title": "Fatir",
-            "startPage": 567
-        },
-        {
-            "id": 36,
-            "title": "Ya-Sin",
-            "startPage": 575
-        },
-        {
-            "id": 37,
-            "title": "as-Saffat",
-            "startPage": 583
-        },
-        {
-            "id": 38,
-            "title": "Sad",
-            "startPage": 596
-        },
-        {
-            "id": 39,
-            "title": "az-Zumar",
-            "startPage": 605
-        },
-        {
-            "id": 40,
-            "title": "al-Mu'min",
-            "startPage": 617
-        },
-        {
-            "id": 41,
-            "title": "Ha-Mim as-Sagda",
-            "startPage": 629
-        },
-        {
-            "id": 42,
-            "title": "as-Sura",
-            "startPage": 637
-        },
-        {
-            "id": 43,
-            "title": "az-Zuhruf",
-            "startPage": 645
-        },
-        {
-            "id": 44,
-            "title": "ad-Duhan",
-            "startPage": 655
-        },
-        {
-            "id": 45,
-            "title": "al-Gatiya",
-            "startPage": 660
-        },
-        {
-            "id": 46,
-            "title": "al-Ahqaf",
-            "startPage": 665
-        },
-        {
-            "id": 47,
-            "title": "Muhammad",
-            "startPage": 672
-        },
-        {
-            "id": 48,
-            "title": "al-Fath",
-            "startPage": 678
-        },
-        {
-            "id": 49,
-            "title": "al-Hugurat",
-            "startPage": 684
-        },
-        {
-            "id": 50,
-            "title": "Qaf",
-            "startPage": 688
-        },
-        {
-            "id": 51,
-            "title": "ad-Dariyat",
-            "startPage": 693
-        },
-        {
-            "id": 52,
-            "title": "at-Tur",
-            "startPage": 698
-        },
-        {
-            "id": 53,
-            "title": "an-Nagm",
-            "startPage": 702
-        },
-        {
-            "id": 54,
-            "title": "al-Qamar",
-            "startPage": 707
-        },
-        {
-            "id": 55,
-            "title": "ar-Rahman",
-            "startPage": 712
-        },
-        {
-            "id": 56,
-            "title": "al-Waqi'a",
-            "startPage": 718
-        },
-        {
-            "id": 57,
-            "title": "al-Hadid",
-            "startPage": 724
-        },
-        {
-            "id": 58,
-            "title": "al-Mugadala",
-            "startPage": 730
-        },
-        {
-            "id": 59,
-            "title": "al-Hasr",
-            "startPage": 735
-        },
-        {
-            "id": 60,
-            "title": "al-Mumtahina",
-            "startPage": 740
-        },
-        {
-            "id": 61,
-            "title": "as-Saff",
-            "startPage": 744
-        },
-        {
-            "id": 62,
-            "title": "al-Gumu'a",
-            "startPage": 747
-        },
-        {
-            "id": 63,
-            "title": "al-Munafiqun",
-            "startPage": 749
-        },
-        {
-            "id": 64,
-            "title": "at-Tagabun",
-            "startPage": 751
-        },
-        {
-            "id": 65,
-            "title": "at-Talaq",
-            "startPage": 754
-        },
-        {
-            "id": 66,
-            "title": "at-Tahrim",
-            "startPage": 757
-        },
-        {
-            "id": 67,
-            "title": "al-Mulk",
-            "startPage": 760
-        },
-        {
-            "id": 68,
-            "title": "al-Qalam",
-            "startPage": 764
-        },
-        {
-            "id": 69,
-            "title": "al-Haqqa",
-            "startPage": 768
-        },
-        {
-            "id": 70,
-            "title": "al-Ma'arig",
-            "startPage": 772
-        },
-        {
-            "id": 71,
-            "title": "Nuh",
-            "startPage": 775
-        },
-        {
-            "id": 72,
-            "title": "al-Ginn",
-            "startPage": 778
-        },
-        {
-            "id": 73,
-            "title": "al-Muzzammil",
-            "startPage": 782
-        },
-        {
-            "id": 74,
-            "title": "al-Muddattir",
-            "startPage": 785
-        },
-        {
-            "id": 75,
-            "title": "al-Qiyama",
-            "startPage": 789
-        },
-        {
-            "id": 76,
-            "title": "ad-Dahr",
-            "startPage": 792
-        },
-        {
-            "id": 77,
-            "title": "al-Mursalat",
-            "startPage": 795
-        },
-        {
-            "id": 78,
-            "title": "an-Naba'",
-            "startPage": 798
-        },
-        {
-            "id": 79,
-            "title": "an-Nazi'at",
-            "startPage": 801
-        },
-        {
-            "id": 80,
-            "title": "'Abasa",
-            "startPage": 804
-        },
-        {
-            "id": 81,
-            "title": "at-Takwir",
-            "startPage": 807
-        },
-        {
-            "id": 82,
-            "title": "al-Infitar",
-            "startPage": 810
-        },
-        {
-            "id": 83,
-            "title": "al-Mutaffifin",
-            "startPage": 812
-        },
-        {
-            "id": 84,
-            "title": "al-Insiqaq",
-            "startPage": 815
-        },
-        {
-            "id": 85,
-            "title": "al-Burug",
-            "startPage": 817
-        },
-        {
-            "id": 86,
-            "title": "at-Tariq",
-            "startPage": 819
-        },
-        {
-            "id": 87,
-            "title": "al-A'la",
-            "startPage": 821
-        },
-        {
-            "id": 88,
-            "title": "al-Gasiya",
-            "startPage": 823
-        },
-        {
-            "id": 89,
-            "title": "al-Fagr",
-            "startPage": 825
-        },
-        {
-            "id": 90,
-            "title": "al-Balad",
-            "startPage": 827
-        },
-        {
-            "id": 91,
-            "title": "as-Sams",
-            "startPage": 829
-        },
-        {
-            "id": 92,
-            "title": "al-Lail",
-            "startPage": 830
-        },
-        {
-            "id": 93,
-            "title": "ad-Duha",
-            "startPage": 832
-        },
-        {
-            "id": 94,
-            "title": "al-Insirah",
-            "startPage": 833
-        },
-        {
-            "id": 95,
-            "title": "at-Tin",
-            "startPage": 834
-        },
-        {
-            "id": 96,
-            "title": "al-'Alaq",
-            "startPage": 835
-        },
-        {
-            "id": 97,
-            "title": "al-Qadr",
-            "startPage": 837
-        },
-        {
-            "id": 98,
-            "title": "al-Bayyina",
-            "startPage": 838
-        },
-        {
-            "id": 99,
-            "title": "az-Zilzal",
-            "startPage": 839
-        },
-        {
-            "id": 100,
-            "title": "al-'Adiyat",
-            "startPage": 840
-        },
-        {
-            "id": 101,
-            "title": "al-Qari'a",
-            "startPage": 841
-        },
-        {
-            "id": 102,
-            "title": "at-Takatur",
-            "startPage": 842
-        },
-        {
-            "id": 103,
-            "title": "al-'Asr",
-            "startPage": 843
-        },
-        {
-            "id": 104,
-            "title": "al-Humaza",
-            "startPage": 844
-        },
-        {
-            "id": 105,
-            "title": "al-Fil",
-            "startPage": 845
-        },
-        {
-            "id": 106,
-            "title": "Qurais",
-            "startPage": 846
-        },
-        {
-            "id": 107,
-            "title": "al-Ma'un",
-            "startPage": 847
-        },
-        {
-            "id": 108,
-            "title": "al-Kautar",
-            "startPage": 848
-        },
-        {
-            "id": 109,
-            "title": "al-Kafirun",
-            "startPage": 849
-        },
-        {
-            "id": 110,
-            "title": "an-Nasr",
-            "startPage": 850
-        },
-        {
-            "id": 111,
-            "title": "al-Lahab",
-            "startPage": 851
-        },
-        {
-            "id": 112,
-            "title": "al-Ihlas",
-            "startPage": 852
-        },
-        {
-            "id": 113,
-            "title": "al-Falaq",
-            "startPage": 853
-        },
-        {
-            "id": 114,
-            "title": "an-Nas",
-            "startPage": 854
-        }
-    ]
+  "surahs": [
+    {
+      "id": 1,
+      "title": "al-Fatiha",
+      "page": 29
+    },
+    {
+      "id": 2,
+      "title": "al-Baqara",
+      "page": 30
+    },
+    {
+      "id": 3,
+      "title": "Al Imran",
+      "page": 126
+    },
+    {
+      "id": 4,
+      "title": "an-Nisa'",
+      "page": 180
+    },
+    {
+      "id": 5,
+      "title": "al-Ma'ida",
+      "page": 238
+    },
+    {
+      "id": 6,
+      "title": "al-An'am",
+      "page": 282
+    },
+    {
+      "id": 7,
+      "title": "al-A'raf",
+      "page": 328
+    },
+    {
+      "id": 8,
+      "title": "al-Anfal",
+      "page": 380
+    },
+    {
+      "id": 9,
+      "title": "at-Tauba",
+      "page": 400
+    },
+    {
+      "id": 10,
+      "title": "Yunus",
+      "page": 442
+    },
+    {
+      "id": 11,
+      "title": "Hud",
+      "page": 468
+    },
+    {
+      "id": 12,
+      "title": "Yusuf",
+      "page": 496
+    },
+    {
+      "id": 13,
+      "title": "ar-Ra'd",
+      "page": 524
+    },
+    {
+      "id": 14,
+      "title": "Ibrahim",
+      "page": 536
+    },
+    {
+      "id": 15,
+      "title": "al-Higr",
+      "page": 550
+    },
+    {
+      "id": 16,
+      "title": "an-Nahl",
+      "page": 560
+    },
+    {
+      "id": 17,
+      "title": "Bani Israil",
+      "page": 590
+    },
+    {
+      "id": 18,
+      "title": "al-Kahf",
+      "page": 612
+    },
+    {
+      "id": 19,
+      "title": "Maryam",
+      "page": 636
+    },
+    {
+      "id": 20,
+      "title": "Ta-Ha",
+      "page": 650
+    },
+    {
+      "id": 21,
+      "title": "al-Anbiya'",
+      "page": 670
+    },
+    {
+      "id": 22,
+      "title": "al-Hagg",
+      "page": 690
+    },
+    {
+      "id": 23,
+      "title": "al-Mu'minun",
+      "page": 710
+    },
+    {
+      "id": 24,
+      "title": "an-Nur",
+      "page": 726
+    },
+    {
+      "id": 25,
+      "title": "al-Furqan",
+      "page": 744
+    },
+    {
+      "id": 26,
+      "title": "as-Su'ara'",
+      "page": 760
+    },
+    {
+      "id": 27,
+      "title": "an-Naml",
+      "page": 780
+    },
+    {
+      "id": 28,
+      "title": "al-Qasas",
+      "page": 796
+    },
+    {
+      "id": 29,
+      "title": "al-'Ankabut",
+      "page": 818
+    },
+    {
+      "id": 30,
+      "title": "ar-Rum",
+      "page": 834
+    },
+    {
+      "id": 31,
+      "title": "Luqman",
+      "page": 848
+    },
+    {
+      "id": 32,
+      "title": "as-Sagda",
+      "page": 856
+    },
+    {
+      "id": 33,
+      "title": "al-Ahzab",
+      "page": 862
+    },
+    {
+      "id": 34,
+      "title": "Saba'",
+      "page": 882
+    },
+    {
+      "id": 35,
+      "title": "Fatir",
+      "page": 894
+    },
+    {
+      "id": 36,
+      "title": "Ya-Sin",
+      "page": 906
+    },
+    {
+      "id": 37,
+      "title": "as-Saffat",
+      "page": 918
+    },
+    {
+      "id": 38,
+      "title": "Sad",
+      "page": 932
+    },
+    {
+      "id": 39,
+      "title": "az-Zumar",
+      "page": 942
+    },
+    {
+      "id": 40,
+      "title": "al-Mu'min",
+      "page": 960
+    },
+    {
+      "id": 41,
+      "title": "Ha-Mim as-Sagda",
+      "page": 980
+    },
+    {
+      "id": 42,
+      "title": "as-Sura",
+      "page": 992
+    },
+    {
+      "id": 43,
+      "title": "az-Zuhruf",
+      "page": 1004
+    },
+    {
+      "id": 44,
+      "title": "ad-Duhan",
+      "page": 1018
+    },
+    {
+      "id": 45,
+      "title": "al-Gatiya",
+      "page": 1024
+    },
+    {
+      "id": 46,
+      "title": "al-Ahqaf",
+      "page": 1030
+    },
+    {
+      "id": 47,
+      "title": "Muhammad",
+      "page": 1040
+    },
+    {
+      "id": 48,
+      "title": "al-Fath",
+      "page": 1048
+    },
+    {
+      "id": 49,
+      "title": "al-Hugurat",
+      "page": 1056
+    },
+    {
+      "id": 50,
+      "title": "Qaf",
+      "page": 1062
+    },
+    {
+      "id": 51,
+      "title": "ad-Dariyat",
+      "page": 1066
+    },
+    {
+      "id": 52,
+      "title": "at-Tur",
+      "page": 1072
+    },
+    {
+      "id": 53,
+      "title": "an-Nagm",
+      "page": 1078
+    },
+    {
+      "id": 54,
+      "title": "al-Qamar",
+      "page": 1082
+    },
+    {
+      "id": 55,
+      "title": "ar-Rahman",
+      "page": 1088
+    },
+    {
+      "id": 56,
+      "title": "al-Waqi'a",
+      "page": 1094
+    },
+    {
+      "id": 57,
+      "title": "al-Hadid",
+      "page": 1100
+    },
+    {
+      "id": 58,
+      "title": "al-Mugadala",
+      "page": 1110
+    },
+    {
+      "id": 59,
+      "title": "al-Hasr",
+      "page": 1116
+    },
+    {
+      "id": 60,
+      "title": "al-Mumtahina",
+      "page": 1124
+    },
+    {
+      "id": 61,
+      "title": "as-Saff",
+      "page": 1128
+    },
+    {
+      "id": 62,
+      "title": "al-Gumu'a",
+      "page": 1132
+    },
+    {
+      "id": 63,
+      "title": "al-Munafiqun",
+      "page": 1134
+    },
+    {
+      "id": 64,
+      "title": "at-Tagabun",
+      "page": 1138
+    },
+    {
+      "id": 65,
+      "title": "at-Talaq",
+      "page": 1142
+    },
+    {
+      "id": 66,
+      "title": "at-Tahrim",
+      "page": 1146
+    },
+    {
+      "id": 67,
+      "title": "al-Mulk",
+      "page": 1150
+    },
+    {
+      "id": 68,
+      "title": "al-Qalam",
+      "page": 1154
+    },
+    {
+      "id": 69,
+      "title": "al-Haqqa",
+      "page": 1158
+    },
+    {
+      "id": 70,
+      "title": "al-Ma'arig",
+      "page": 1162
+    },
+    {
+      "id": 71,
+      "title": "Nuh",
+      "page": 1166
+    },
+    {
+      "id": 72,
+      "title": "al-Ginn",
+      "page": 1170
+    },
+    {
+      "id": 73,
+      "title": "al-Muzzammil",
+      "page": 1174
+    },
+    {
+      "id": 74,
+      "title": "al-Muddattir",
+      "page": 1176
+    },
+    {
+      "id": 75,
+      "title": "al-Qiyama",
+      "page": 1180
+    },
+    {
+      "id": 76,
+      "title": "ad-Dahr",
+      "page": 1182
+    },
+    {
+      "id": 77,
+      "title": "al-Mursalat",
+      "page": 1186
+    },
+    {
+      "id": 78,
+      "title": "an-Naba'",
+      "page": 1190
+    },
+    {
+      "id": 79,
+      "title": "an-Nazi'at",
+      "page": 1192
+    },
+    {
+      "id": 80,
+      "title": "'Abasa",
+      "page": 1196
+    },
+    {
+      "id": 81,
+      "title": "at-Takwir",
+      "page": 1198
+    },
+    {
+      "id": 82,
+      "title": "al-Infitar",
+      "page": 1200
+    },
+    {
+      "id": 83,
+      "title": "al-Mutaffifin",
+      "page": 1200
+    },
+    {
+      "id": 84,
+      "title": "al-Insiqaq",
+      "page": 1204
+    },
+    {
+      "id": 85,
+      "title": "al-Burug",
+      "page": 1206
+    },
+    {
+      "id": 86,
+      "title": "at-Tariq",
+      "page": 1208
+    },
+    {
+      "id": 87,
+      "title": "al-A'la",
+      "page": 1208
+    },
+    {
+      "id": 88,
+      "title": "al-Gasiya",
+      "page": 1210
+    },
+    {
+      "id": 89,
+      "title": "al-Fagr",
+      "page": 1212
+    },
+    {
+      "id": 90,
+      "title": "al-Balad",
+      "page": 1214
+    },
+    {
+      "id": 91,
+      "title": "as-Sams",
+      "page": 1216
+    },
+    {
+      "id": 92,
+      "title": "al-Lail",
+      "page": 1216
+    },
+    {
+      "id": 93,
+      "title": "ad-Duha",
+      "page": 1218
+    },
+    {
+      "id": 94,
+      "title": "al-Insirah",
+      "page": 1218
+    },
+    {
+      "id": 95,
+      "title": "at-Tin",
+      "page": 1220
+    },
+    {
+      "id": 96,
+      "title": "al-'Alaq",
+      "page": 1220
+    },
+    {
+      "id": 97,
+      "title": "al-Qadr",
+      "page": 1222
+    },
+    {
+      "id": 98,
+      "title": "al-Bayyina",
+      "page": 1222
+    },
+    {
+      "id": 99,
+      "title": "az-Zilzal",
+      "page": 1224
+    },
+    {
+      "id": 100,
+      "title": "al-'Adiyat",
+      "page": 1224
+    },
+    {
+      "id": 101,
+      "title": "al-Qari'a",
+      "page": 1226
+    },
+    {
+      "id": 102,
+      "title": "at-Takatur",
+      "page": 1226
+    },
+    {
+      "id": 103,
+      "title": "al-'Asr",
+      "page": 1228
+    },
+    {
+      "id": 104,
+      "title": "al-Humaza",
+      "page": 1228
+    },
+    {
+      "id": 105,
+      "title": "al-Fil",
+      "page": 1228
+    },
+    {
+      "id": 106,
+      "title": "Qurais",
+      "page": 1230
+    },
+    {
+      "id": 107,
+      "title": "al-Ma'un",
+      "page": 1230
+    },
+    {
+      "id": 108,
+      "title": "al-Kautar",
+      "page": 1230
+    },
+    {
+      "id": 109,
+      "title": "al-Kafirun",
+      "page": 1232
+    },
+    {
+      "id": 110,
+      "title": "an-Nasr",
+      "page": 1232
+    },
+    {
+      "id": 111,
+      "title": "al-Lahab",
+      "page": 1232
+    },
+    {
+      "id": 112,
+      "title": "al-Ihlas",
+      "page": 1234
+    },
+    {
+      "id": 113,
+      "title": "al-Falaq",
+      "page": 1234
+    },
+    {
+      "id": 114,
+      "title": "an-Nas",
+      "page": 1234
+    }
+  ]
 }
