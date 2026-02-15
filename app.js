@@ -146,6 +146,7 @@ function renderCategories() {
         return `
             <div class="category-card" onclick="selectCat('${cat.id}')">
                 <div class="category-actions" onclick="event.stopPropagation()">
+                    <button class="icon-btn" onclick="exportCSV('${cat.id}')" aria-label="Exportieren" title="CSV Export">📤</button>
                     <button class="icon-btn" onclick="editCategory('${cat.id}')" aria-label="Bearbeiten">✏️</button>
                     <button class="icon-btn delete" onclick="deleteCategory('${cat.id}')" aria-label="Löschen">🗑️</button>
                 </div>
@@ -172,6 +173,9 @@ function renderCategories() {
             `<option value="${c.id}">${c.icon} ${c.name}</option>`
         ).join('');
     }
+
+    // Also update CSV import chapter selector
+    renderCSVCatSelect();
 }
 
 function openNewCatModal() {
@@ -742,6 +746,156 @@ function setupDragDrop() {
             handleUpload(fakeInput);
         }
     });
+}
+
+// ===== CSV IMPORT / EXPORT =====
+
+/**
+ * Populate the CSV import chapter selector
+ */
+function renderCSVCatSelect() {
+    const sel = document.getElementById('csvTargetCat');
+    if (sel) {
+        sel.innerHTML = AppState.categories.map(c =>
+            `<option value="${c.id}">${c.icon} ${c.name}</option>`
+        ).join('');
+    }
+}
+
+/**
+ * Check if a string contains Arabic characters
+ */
+function isArabic(str) {
+    return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(str);
+}
+
+/**
+ * Import CSV — auto-detects column order (DE;AR or AR;DE)
+ * Creates only DE→AR cards
+ */
+function importCSV(input) {
+    if (!input.files || !input.files[0]) return;
+
+    const catId = document.getElementById('csvTargetCat').value;
+    if (!catId) {
+        showToast('⚠️ Bitte zuerst ein Kapitel wählen!', 'warning');
+        input.value = '';
+        return;
+    }
+
+    const file = input.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+
+        if (lines.length < 2) {
+            showToast('⚠️ CSV leer oder nur Überschrift', 'warning');
+            input.value = '';
+            return;
+        }
+
+        const dataLines = lines.slice(1);
+        let imported = 0;
+        let skipped = 0;
+
+        dataLines.forEach(line => {
+            const sep = line.includes(';') ? ';' : '\t';
+            const parts = line.split(sep).map(s => s.trim());
+
+            let col1 = parts[0] || '';
+            let col2 = parts[1] || '';
+            const ex = parts[2] || '';
+
+            if (!col1 || !col2) { skipped++; return; }
+
+            // Auto-detect: if col1 is Arabic, swap so de=col2, ar=col1
+            let de, ar;
+            if (isArabic(col1)) {
+                ar = col1;
+                de = col2;
+            } else {
+                de = col1;
+                ar = col2;
+            }
+
+            // Create only DE → AR card
+            AppState.cards.push({
+                front: de, back: ar,
+                frontLang: 'de', backLang: 'ar',
+                ex, cat: catId,
+                score: 0, correctCount: 0, wrongCount: 0, lastSeen: null
+            });
+            imported++;
+        });
+
+        Storage.save();
+        renderCategories();
+        input.value = '';
+
+        const cat = AppState.categories.find(c => c.id === catId);
+        const catName = cat ? cat.name : '';
+
+        if (imported > 0) {
+            showToast(`✅ ${imported} Karten importiert in "${catName}"!`, 'success');
+        }
+        if (skipped > 0) {
+            showToast(`⚠️ ${skipped} Zeilen übersprungen`, 'warning');
+        }
+    };
+
+    reader.readAsText(file, 'UTF-8');
+}
+
+/**
+ * Export cards of a chapter as CSV download
+ */
+function exportCSV(catId) {
+    event.stopPropagation(); // Don't trigger selectCat
+
+    const cat = AppState.categories.find(c => c.id === catId);
+    if (!cat) return;
+
+    const catCards = AppState.cards.filter(c => c.cat === catId);
+    if (catCards.length === 0) {
+        showToast('📭 Keine Karten zum Exportieren', 'info');
+        return;
+    }
+
+    // Deduplicate: collect unique DE-AR pairs
+    const pairMap = new Map();
+    catCards.forEach(card => {
+        let de, ar;
+        if (card.frontLang === 'de') { de = card.front; ar = card.back; }
+        else { de = card.back; ar = card.front; }
+        const key = `${de}|${ar}`;
+        if (!pairMap.has(key)) {
+            pairMap.set(key, { de, ar, ex: card.ex || '' });
+        }
+    });
+
+    const pairs = Array.from(pairMap.values());
+
+    // Build CSV with BOM for Excel compatibility
+    let csv = '\uFEFF'; // UTF-8 BOM
+    csv += 'deutsch;arabisch;beispiel\n';
+    pairs.forEach(p => {
+        csv += `${p.de};${p.ar};${p.ex}\n`;
+    });
+
+    // Trigger download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${cat.name.replace(/[^a-zA-Z0-9äöüÄÖÜß]/g, '_')}_Karten.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast(`📤 ${pairs.length} Karten exportiert!`, 'success');
 }
 
 // ===== HELPERS =====

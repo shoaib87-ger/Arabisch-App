@@ -89,6 +89,24 @@
                 <button class="btn btn-primary" onclick="addWord()">➕ Hinzufügen</button>
             </div>
 
+            <!-- CSV Import -->
+            <div class="word-form">
+                <h3>📥 CSV importieren</h3>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5;">
+                    Format: <code
+                        style="background: var(--bg-light); padding: 2px 6px; border-radius: 4px; font-size: 11px;">deutsch;arabisch</code>
+                    oder <code
+                        style="background: var(--bg-light); padding: 2px 6px; border-radius: 4px; font-size: 11px;">arabisch;deutsch</code><br>
+                    Spaltenreihenfolge wird automatisch erkannt · Karten: DE→AR
+                </p>
+                <label
+                    style="display: block; margin-bottom: 5px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">Kapitel:</label>
+                <select id="csvTargetCat"></select>
+                <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" onchange="importCSV(this)">
+                <button class="btn btn-primary" onclick="document.getElementById('csvFileInput').click()">📂 CSV-Datei
+                    importieren</button>
+            </div>
+
             <div class="quick-category">
                 <p>Neues Kapitel benötigt?</p>
                 <button class="btn btn-secondary btn-small" onclick="openNewCatModal()">➕ Neues Kapitel</button>
