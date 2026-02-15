@@ -166,6 +166,12 @@ function switchTab(tabName) {
     if (tabEl) tabEl.classList.add('active');
     if (contentEl) contentEl.classList.add('active');
 
+    // Header color: green for Islam, gold for everything else
+    const header = document.querySelector('.header');
+    if (header) {
+        header.classList.toggle('islam-active', tabName === 'islam');
+    }
+
     if (tabName === 'categories') {
         AppState.currentGroup = null; // Reset to top-level groups view
         renderCategories();
