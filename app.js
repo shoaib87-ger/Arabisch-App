@@ -9,6 +9,7 @@ const AppState = {
     cards: [],
     pending: [],
     currentCat: null,
+    currentGroup: null,  // selected Oberkategorie
     currentCards: [],
     currentIdx: 0,
     flipped: false,
@@ -22,6 +23,55 @@ const AppState = {
     touchCurrentX: 0,
     isSwiping: false,
 };
+
+// ===== HIERARCHY HELPERS =====
+/** Get top-level groups (no parentId) */
+function getGroups() {
+    return AppState.categories
+        .filter(c => !c.parentId)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+/** Get subcategories of a group */
+function getSubcategories(groupId) {
+    return AppState.categories
+        .filter(c => c.parentId === groupId)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+/** Check if a group has children */
+function hasChildren(groupId) {
+    return AppState.categories.some(c => c.parentId === groupId);
+}
+
+/** Compute progress for a category (works for both sub and standalone) */
+function computeProgress(catId) {
+    const catCards = AppState.cards.filter(c => c.cat === catId);
+    if (catCards.length === 0) return { total: 0, mastered: 0, pct: 0 };
+    const mastered = catCards.filter(c => (c.score || 0) >= 3).length;
+    return {
+        total: catCards.length,
+        mastered: mastered,
+        pct: Math.round((mastered / catCards.length) * 100)
+    };
+}
+
+/** Get total card count for a group (own cards + all children) */
+function getGroupCardCount(groupId) {
+    const subs = getSubcategories(groupId);
+    const subIds = subs.map(s => s.id);
+    return AppState.cards.filter(c => c.cat === groupId || subIds.includes(c.cat)).length;
+}
+
+/** Get aggregated progress for a group */
+function getGroupProgress(groupId) {
+    const subs = getSubcategories(groupId);
+    const ids = [groupId, ...subs.map(s => s.id)];
+    const cards = AppState.cards.filter(c => ids.includes(c.cat));
+    if (cards.length === 0) return { total: 0, mastered: 0, pct: 0 };
+    const mastered = cards.filter(c => (c.score || 0) >= 3).length;
+    return { total: cards.length, mastered, pct: Math.round((mastered / cards.length) * 100) };
+}
 
 const ICONS = ['📝', '🏃', '🏠', '🍕', '✈️', '🏥', '💼', '🎓', '⚽', '🎵', '📚', '🌍', '🎨', '🔧', '💊', '🎯', '🚗', '📱', '💡', '🎪'];
 
@@ -116,7 +166,10 @@ function switchTab(tabName) {
     if (tabEl) tabEl.classList.add('active');
     if (contentEl) contentEl.classList.add('active');
 
-    if (tabName === 'categories') renderCategories();
+    if (tabName === 'categories') {
+        AppState.currentGroup = null; // Reset to top-level groups view
+        renderCategories();
+    }
     if (tabName === 'islam') renderIslamTab();
     if (tabName !== 'islam') PrayerTimes.stopCountdown();
 }
@@ -124,16 +177,26 @@ function switchTab(tabName) {
 // ===== KAPITEL MANAGEMENT =====
 function renderCategories() {
     const grid = document.getElementById('categoryGrid');
-    const sel = document.getElementById('targetCat');
 
-    grid.innerHTML = AppState.categories.map(cat => {
-        const count = AppState.cards.filter(c => c.cat === cat.id).length;
-        const prog = Stats.getChapterProgress(cat.id, AppState.cards);
+    // If we're inside a group view, show subcategories
+    if (AppState.currentGroup) {
+        renderSubcategories(AppState.currentGroup);
+        updateCatDropdowns();
+        return;
+    }
+
+    const groups = getGroups();
+
+    grid.innerHTML = groups.map(cat => {
+        const isGroup = hasChildren(cat.id);
+        const count = isGroup ? getGroupCardCount(cat.id) : AppState.cards.filter(c => c.cat === cat.id).length;
+        const prog = isGroup ? getGroupProgress(cat.id) : computeProgress(cat.id);
         const circumference = 2 * Math.PI * 14;
         const offset = circumference - (prog.pct / 100) * circumference;
+        const subCount = isGroup ? getSubcategories(cat.id).length : 0;
 
         return `
-            <div class="category-card" onclick="selectCat('${cat.id}')">
+            <div class="category-card" onclick="selectGroup('${cat.id}')">
                 <div class="category-actions" onclick="event.stopPropagation()">
                     <button class="icon-btn" onclick="exportCSV('${cat.id}')" aria-label="Exportieren" title="CSV Export">📤</button>
                     <button class="icon-btn" onclick="editCategory('${cat.id}')" aria-label="Bearbeiten">✏️</button>
@@ -141,7 +204,7 @@ function renderCategories() {
                 </div>
                 <div class="category-icon">${cat.icon}</div>
                 <div class="category-name">${escapeHtml(cat.name)}</div>
-                <div class="category-count">${count} Karten</div>
+                <div class="category-count">${count} Karten${subCount > 0 ? ` · ${subCount} Einheiten` : ''}</div>
                 ${count > 0 ? `
                     <div class="category-progress">
                         <svg class="progress-ring" viewBox="0 0 36 36">
@@ -153,25 +216,254 @@ function renderCategories() {
                         <div class="category-progress-text">${prog.pct}%</div>
                     </div>
                 ` : ''}
+                ${isGroup ? '<div class="group-badge">📂</div>' : ''}
             </div>
         `;
     }).join('');
 
+    updateCatDropdowns();
+}
+
+/** Update all category dropdowns (targetCat + csvTargetCat) with grouped format */
+function updateCatDropdowns() {
+    const groups = getGroups();
+    let options = '';
+    groups.forEach(g => {
+        const subs = getSubcategories(g.id);
+        if (subs.length > 0) {
+            options += `<optgroup label="${g.icon} ${escapeHtml(g.name)}">`;
+            subs.forEach(s => {
+                options += `<option value="${s.id}">${s.icon || '📄'} ${escapeHtml(s.name)}</option>`;
+            });
+            options += '</optgroup>';
+            // Also allow adding directly to group
+            options += `<option value="${g.id}">${g.icon} ${escapeHtml(g.name)} (direkt)</option>`;
+        } else {
+            options += `<option value="${g.id}">${g.icon} ${escapeHtml(g.name)}</option>`;
+        }
+    });
+
+    // Preserve current selections before replacing HTML
+    const sel = document.getElementById('targetCat');
+    const csvSel = document.getElementById('csvTargetCat');
+    const prevTarget = sel ? sel.value : null;
+    const prevCsv = csvSel ? csvSel.value : null;
+
     if (sel) {
-        sel.innerHTML = AppState.categories.map(c =>
-            `<option value="${c.id}">${c.icon} ${c.name}</option>`
-        ).join('');
+        sel.innerHTML = options;
+        if (prevTarget) sel.value = prevTarget; // Restore selection
+    }
+    if (csvSel) {
+        csvSel.innerHTML = options;
+        if (prevCsv) csvSel.value = prevCsv; // Restore selection
+    }
+}
+
+/** Show subcategories inside a group */
+function selectGroup(groupId) {
+    AppState.currentGroup = groupId;
+    AppState.learnScope = null; // Reset scope
+    renderSubcategories(groupId);
+}
+
+/** Render subcategory chips for a group — with inline mode selector */
+function renderSubcategories(groupId) {
+    const grid = document.getElementById('categoryGrid');
+    const group = AppState.categories.find(c => c.id === groupId);
+    if (!group) return;
+
+    const subs = getSubcategories(groupId);
+    const groupProg = getGroupProgress(groupId);
+    const totalCards = getGroupCardCount(groupId);
+    const ownCards = AppState.cards.filter(c => c.cat === groupId).length;
+    const hasEnoughForQuiz = (AppState.currentCards || []).length >= 4;
+    const scopeActive = !!AppState.learnScope;
+    const scopeCards = scopeActive ? AppState.currentCards.length : 0;
+
+    // Scope label
+    let scopeLabel = null;
+    if (AppState.learnScope === 'group') {
+        scopeLabel = `Alle ${scopeCards} Karten`;
+    } else if (AppState.learnScope === 'sub' && AppState.currentCat) {
+        const s = AppState.categories.find(c => c.id === AppState.currentCat);
+        scopeLabel = s ? `${s.icon || '📄'} ${escapeHtml(s.name)} (${scopeCards})` : null;
     }
 
-    // Also update CSV import chapter selector
-    renderCSVCatSelect();
+    // Search field only if > 30 subs
+    const searchField = subs.length > 30 ? `
+        <div class="sub-search">
+            <input type="text" id="subSearch" class="form-input" placeholder="🔍 Einheit suchen..."
+                oninput="filterSubcategories('${groupId}')" autocomplete="off">
+        </div>
+    ` : '';
+
+    const chipsHTML = subs.map(sub => {
+        const prog = computeProgress(sub.id);
+        const cardCount = AppState.cards.filter(c => c.cat === sub.id).length;
+        const isActive = AppState.learnScope === 'sub' && AppState.currentCat === sub.id;
+        return `
+            <div class="sub-chip ${isActive ? 'active' : ''}" onclick="setScopeSubCat('${sub.id}','${groupId}')" data-name="${escapeHtml(sub.name).toLowerCase()}">
+                <div class="sub-chip-top">
+                    <div class="sub-chip-name">${sub.icon || '📄'} ${escapeHtml(sub.shortLabel || sub.name)}</div>
+                    <div class="sub-chip-actions" onclick="event.stopPropagation()">
+                        <button class="sub-action-btn" onclick="editCategory('${sub.id}')" title="Umbenennen">✏️</button>
+                        <button class="sub-action-btn delete" onclick="deleteSubCategory('${sub.id}','${groupId}')" title="Löschen">🗑️</button>
+                    </div>
+                </div>
+                ${prog.total > 0 ? `
+                    <div class="sub-chip-progress">
+                        <div class="sub-chip-bar"><div class="sub-chip-bar-fill" style="width: ${prog.pct}%"></div></div>
+                        <span class="sub-chip-count">${prog.mastered}/${prog.total}</span>
+                    </div>
+                ` : '<div class="sub-chip-count">0 Karten</div>'}
+            </div>
+        `;
+    }).join('');
+
+    // Mode selector — always visible
+    const modeSelectorHTML = `
+        <div class="mode-selector">
+            <button class="mode-btn ${!scopeActive ? 'disabled' : ''}" onclick="startLearnMode('cards')">
+                <span class="mode-icon">📇</span>
+                <span class="mode-label">Karteikarten</span>
+            </button>
+            <button class="mode-btn ${!scopeActive || !hasEnoughForQuiz ? 'disabled' : ''}" onclick="startLearnMode('quiz_de_ar')">
+                <span class="mode-icon-badge">ABC</span>
+                <span class="mode-label">Quiz DE→AR</span>
+            </button>
+            <button class="mode-btn ${!scopeActive || !hasEnoughForQuiz ? 'disabled' : ''}" onclick="startLearnMode('quiz_ar_de')">
+                <span class="mode-icon-badge ar">أ ب ت</span>
+                <span class="mode-label">Quiz AR→DE</span>
+            </button>
+        </div>
+        ${scopeLabel ? `<div class="scope-info">📌 ${scopeLabel} ausgewählt</div>` : '<div class="scope-info scope-hint">👆 Wähle unten eine Einheit oder \"Alle Karten\"</div>'}
+    `;
+
+    // Standalone category (no subs, with own cards)
+    const directLearnHTML = (subs.length === 0 && ownCards > 0) ? `
+        <div class="scope-actions">
+            <button class="btn btn-primary scope-all-btn ${AppState.learnScope === 'group' ? 'active' : ''}" onclick="setScopeGroup('${groupId}')">
+                📇 Alle ${ownCards} Karten auswählen
+            </button>
+        </div>
+    ` : '';
+
+    grid.innerHTML = `
+        <div style="grid-column: 1 / -1;">
+            <div class="group-header">
+                <button class="back-btn" onclick="backToGroups()">←</button>
+                <div class="group-header-info">
+                    <h3>${group.icon} ${escapeHtml(group.name)}</h3>
+                    <p>${totalCards} Karten · ${subs.length > 0 ? subs.length + ' Einheiten · ' : ''}${groupProg.pct}% gemeistert</p>
+                </div>
+                <div class="group-header-actions">
+                    <button class="btn btn-small btn-primary" onclick="openNewSubModal('${groupId}')">+ Einheit</button>
+                </div>
+            </div>
+
+            ${modeSelectorHTML}
+
+            ${directLearnHTML}
+            ${searchField}
+
+            ${subs.length > 0 ? `
+                <div class="sub-chip-grid" id="subChipGrid">
+                    ${chipsHTML}
+                </div>
+
+                <div class="scope-actions">
+                    <button class="btn scope-all-btn ${AppState.learnScope === 'group' ? 'active' : ''}" onclick="setScopeGroup('${groupId}')">
+                        📇 Alle Karten auswählen (${totalCards})
+                    </button>
+                </div>
+            ` : `
+                ${ownCards === 0 ? `
+                    <div class="empty-state">
+                        <p>Noch keine Einheiten. Erstelle die erste!</p>
+                        <button class="btn btn-primary" onclick="openNewSubModal('${groupId}')">+ Erste Einheit erstellen</button>
+                    </div>
+                ` : ''}
+            `}
+        </div>
+    `;
+}
+
+/** Set scope = entire group (all subcategories) */
+function setScopeGroup(groupId) {
+    const subs = getSubcategories(groupId);
+    const allIds = [groupId, ...subs.map(s => s.id)];
+    AppState.currentCat = groupId;
+    AppState.currentCards = AppState.cards.filter(c => allIds.includes(c.cat));
+    AppState.currentIdx = 0;
+    AppState.flipped = false;
+    AppState.learnScope = 'group';
+    renderSubcategories(groupId);
+}
+
+/** Set scope = single subcategory */
+function setScopeSubCat(subId, groupId) {
+    AppState.currentCat = subId;
+    AppState.currentCards = AppState.cards.filter(c => c.cat === subId);
+    AppState.currentIdx = 0;
+    AppState.flipped = false;
+    AppState.learnScope = 'sub';
+    renderSubcategories(groupId);
+}
+
+/** Start the chosen learn mode with the current scope */
+function startLearnMode(mode) {
+    if (!AppState.learnScope || AppState.currentCards.length === 0) {
+        showToast('👆 Bitte zuerst eine Einheit oder \"Alle Karten\" auswählen', 'warning');
+        return;
+    }
+    if (mode === 'cards') {
+        startFlashcards();
+    } else if (mode === 'quiz_de_ar') {
+        if (AppState.currentCards.length < 4) { showToast('⚠️ Min. 4 Karten für Quiz nötig', 'warning'); return; }
+        startQuiz('de-ar');
+    } else if (mode === 'quiz_ar_de') {
+        if (AppState.currentCards.length < 4) { showToast('⚠️ Min. 4 Karten für Quiz nötig', 'warning'); return; }
+        startQuiz('ar-de');
+    }
+}
+
+/** Filter subcategory chips by search query */
+function filterSubcategories(groupId) {
+    const query = (document.getElementById('subSearch')?.value || '').toLowerCase();
+    const grid = document.getElementById('subChipGrid');
+    if (!grid) return;
+    grid.querySelectorAll('.sub-chip').forEach(chip => {
+        const name = chip.dataset.name || '';
+        chip.style.display = name.includes(query) ? '' : 'none';
+    });
+}
+
+/** Legacy — kept for backward compat */
+function selectSubCat(subId) {
+    setScopeSubCat(subId, AppState.currentGroup);
+}
+
+/** Legacy — kept for backward compat */
+function startGroupFlashcards(groupId) {
+    setScopeGroup(groupId);
+}
+
+/** Navigate back to groups view */
+function backToGroups() {
+    AppState.currentGroup = null;
+    renderCategories();
 }
 
 function openNewCatModal() {
+    AppState._newCatParentId = null; // Top-level by default
     document.getElementById('newCatName').value = '';
     AppState.selectedIcon = ICONS[0];
     renderIconPicker('newCatIconPicker', ICONS[0], 'selectNewCatIcon');
-    document.getElementById('newCatModal').classList.add('active');
+    // Reset modal title
+    const modal = document.getElementById('newCatModal');
+    const h3 = modal.querySelector('h3');
+    if (h3) h3.textContent = '➕ Neues Kapitel erstellen';
+    modal.classList.add('active');
 }
 
 function selectNewCatIcon(icon) {
@@ -186,17 +478,37 @@ function saveNewCat() {
         return;
     }
 
+    // Check if creating as subcategory (from group view) or top-level
+    const isGroupCheckbox = document.getElementById('newCatIsGroup');
+    const parentId = AppState._newCatParentId || null;
+
     const newCat = {
         id: 'cat_' + Date.now(),
         name: name,
-        icon: AppState.selectedIcon || ICONS[0]
+        icon: AppState.selectedIcon || ICONS[0],
+        parentId: parentId,
+        order: AppState.categories.filter(c => c.parentId === parentId).length
     };
 
     AppState.categories.push(newCat);
+    AppState._newCatParentId = null;
     Storage.save();
     renderCategories();
     closeModal('newCatModal');
     showToast(`✅ "${name}" erstellt!`, 'success');
+}
+
+/** Open new subcategory modal (pre-set parentId) */
+function openNewSubModal(groupId) {
+    AppState._newCatParentId = groupId;
+    document.getElementById('newCatName').value = '';
+    AppState.selectedIcon = '📄';
+    renderIconPicker('newCatIconPicker', '📄', 'selectNewCatIcon');
+    document.getElementById('newCatModal').classList.add('active');
+    // Update modal title
+    const modal = document.getElementById('newCatModal');
+    const h3 = modal.querySelector('h3');
+    if (h3) h3.textContent = '➕ Neue Einheit erstellen';
 }
 
 function editCategory(catId) {
@@ -234,15 +546,53 @@ function saveEdit() {
 function deleteCategory(catId) {
     const cat = AppState.categories.find(c => c.id === catId);
     if (!cat) return;
-    const cardCount = AppState.cards.filter(c => c.cat === catId).length;
+
+    // Check if it's a group with children
+    const children = getSubcategories(catId);
+    const childIds = children.map(c => c.id);
+    const allIds = [catId, ...childIds];
+    const cardCount = AppState.cards.filter(c => allIds.includes(c.cat)).length;
+
+    let msg;
+    if (children.length > 0) {
+        msg = `⚠️ "${cat.name}" enthält ${children.length} Einheiten und ${cardCount} Karten!\n\nGruppe komplett löschen?`;
+    } else {
+        msg = cardCount > 0
+            ? `⚠️ "${cat.name}" enthält ${cardCount} Karten!\n\nWirklich löschen?`
+            : `"${cat.name}" löschen?`;
+    }
+    if (!confirm(msg)) return;
+
+    // Delete category + all children + all cards in these
+    AppState.categories = AppState.categories.filter(c => !allIds.includes(c.id));
+    AppState.cards = AppState.cards.filter(c => !allIds.includes(c.cat));
+
+    // If we deleted while in group view, go back
+    if (AppState.currentGroup === catId) AppState.currentGroup = null;
+
+    Storage.save();
+    renderCategories();
+    showToast(`🗑️ "${cat.name}" gelöscht`, 'info');
+}
+
+/** Delete a subcategory (stays in group view) */
+function deleteSubCategory(subId, groupId) {
+    const cat = AppState.categories.find(c => c.id === subId);
+    if (!cat) return;
+    const cardCount = AppState.cards.filter(c => c.cat === subId).length;
     const msg = cardCount > 0
         ? `⚠️ "${cat.name}" enthält ${cardCount} Karten!\n\nWirklich löschen?`
         : `"${cat.name}" löschen?`;
     if (!confirm(msg)) return;
-    AppState.categories = AppState.categories.filter(c => c.id !== catId);
-    AppState.cards = AppState.cards.filter(c => c.cat !== catId);
+    AppState.categories = AppState.categories.filter(c => c.id !== subId);
+    AppState.cards = AppState.cards.filter(c => c.cat !== subId);
+    if (AppState.currentCat === subId) {
+        AppState.currentCat = null;
+        AppState.learnScope = null;
+    }
     Storage.save();
-    renderCategories();
+    renderSubcategories(groupId);
+    updateCatDropdowns();
     showToast(`🗑️ "${cat.name}" gelöscht`, 'info');
 }
 
@@ -262,55 +612,22 @@ function selectCat(id) {
     showLearnModes();
 }
 
+/** Reset to categories top-level when switching tabs */
+function resetCategoryView() {
+    AppState.currentGroup = null;
+    AppState.currentCat = null;
+}
+
 // ===== LERNMODUS AUSWAHL =====
+// showLearnModes is now integrated inline into renderSubcategories().
+// This legacy function redirects to the new flow.
 function showLearnModes() {
-    const cat = AppState.categories.find(c => c.id === AppState.currentCat);
-    if (!cat) return;
-
-    const cardCount = AppState.currentCards.length;
-    const prog = Stats.getChapterProgress(cat.id, AppState.cards);
-    const hasEnoughForQuiz = cardCount >= 4; // Need 4+ for good distractors
-
-    const learnArea = document.getElementById('categoryGrid');
-    learnArea.innerHTML = `
-      <div style="grid-column: 1 / -1;">
-        <div class="learn-chapter-header">
-            <button class="back-btn" onclick="switchTab('categories')">←</button>
-            <h3>${cat.icon} ${escapeHtml(cat.name)}</h3>
-        </div>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; text-align: center;">
-            ${cardCount} Karten · ${prog.pct}% gemeistert
-        </p>
-
-        <div class="learn-mode-grid">
-            <div class="learn-mode-card" onclick="startFlashcards()">
-                <div class="learn-mode-icon">🃏</div>
-                <div class="learn-mode-info">
-                    <h4>Karteikarten</h4>
-                    <p>Klassisch: Karte umdrehen und lernen</p>
-                </div>
-            </div>
-
-            <div class="learn-mode-card ${!hasEnoughForQuiz ? 'disabled' : ''}"
-                 onclick="${hasEnoughForQuiz ? "startQuiz('de-ar')" : ''}">
-                <div class="learn-mode-icon">📝</div>
-                <div class="learn-mode-info">
-                    <h4>Quiz: Deutsch → Arabisch</h4>
-                    <p>${hasEnoughForQuiz ? 'Multiple Choice mit 4 Antworten' : '⚠️ Min. 4 Karten nötig'}</p>
-                </div>
-            </div>
-
-            <div class="learn-mode-card ${!hasEnoughForQuiz ? 'disabled' : ''}"
-                 onclick="${hasEnoughForQuiz ? "startQuiz('ar-de')" : ''}">
-                <div class="learn-mode-icon">🔤</div>
-                <div class="learn-mode-info">
-                    <h4>Quiz: Arabisch → Deutsch</h4>
-                    <p>${hasEnoughForQuiz ? 'Arabisches Wort erkennen' : '⚠️ Min. 4 Karten nötig'}</p>
-                </div>
-            </div>
-        </div>
-      </div>
-    `;
+    if (AppState.currentGroup) {
+        selectGroup(AppState.currentGroup);
+    } else {
+        // Standalone category — show it as a group
+        selectGroup(AppState.currentCat);
+    }
 }
 
 function startFlashcards() {
@@ -503,8 +820,17 @@ function editWord(i) {
     if (!row) return;
     row.innerHTML = `
         <div class="pending-edit">
-            <input type="text" id="editDe${i}" value="${escapeHtml(w.de)}" class="form-input" placeholder="Deutsch" style="margin-bottom:4px;">
-            <input type="text" id="editAr${i}" value="${escapeHtml(w.ar)}" class="form-input arabic" placeholder="Arabisch" dir="rtl" style="margin-bottom:4px;">
+            <div class="fmt-toolbar">
+                <button class="fmt-btn" onclick="wrapSelection('editDe${i}','**')" title="Fett">B</button>
+                <button class="fmt-btn fmt-italic" onclick="wrapSelection('editDe${i}','*')" title="Kursiv">I</button>
+                <span class="fmt-hint">Text markieren → B/I drücken</span>
+            </div>
+            <input type="text" id="editDe${i}" value="${escapeAttr(w.de)}" class="form-input" placeholder="Deutsch" style="margin-bottom:4px;">
+            <div class="fmt-toolbar">
+                <button class="fmt-btn" onclick="wrapSelection('editAr${i}','**')" title="Fett">B</button>
+                <button class="fmt-btn fmt-italic" onclick="wrapSelection('editAr${i}','*')" title="Kursiv">I</button>
+            </div>
+            <input type="text" id="editAr${i}" value="${escapeAttr(w.ar)}" class="form-input arabic" placeholder="Arabisch" dir="rtl" style="margin-bottom:4px;">
             <div style="display:flex;gap:6px;">
                 <button class="btn btn-primary btn-small" onclick="saveEditWord(${i})">✅ OK</button>
                 <button class="btn btn-secondary btn-small" onclick="renderPending()">❌</button>
@@ -512,6 +838,38 @@ function editWord(i) {
         </div>
     `;
     document.getElementById(`editDe${i}`).focus();
+}
+
+/** Wrap selected text in an input field with markdown markers */
+function wrapSelection(inputId, marker) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const text = input.value;
+
+    if (start === end) {
+        // No selection: insert markers at cursor
+        input.value = text.slice(0, start) + marker + marker + text.slice(start);
+        input.setSelectionRange(start + marker.length, start + marker.length);
+    } else {
+        // Wrap selected text
+        const selected = text.slice(start, end);
+        // Check if already wrapped — toggle off
+        if (text.slice(start - marker.length, start) === marker && text.slice(end, end + marker.length) === marker) {
+            input.value = text.slice(0, start - marker.length) + selected + text.slice(end + marker.length);
+            input.setSelectionRange(start - marker.length, end - marker.length);
+        } else {
+            input.value = text.slice(0, start) + marker + selected + marker + text.slice(end);
+            input.setSelectionRange(start + marker.length, end + marker.length);
+        }
+    }
+    input.focus();
+}
+
+/** Escape for HTML attribute (value="...") */
+function escapeAttr(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function saveEditWord(i) {
@@ -550,15 +908,30 @@ function renderPending() {
     list.innerHTML = AppState.pending.map((w, i) => `
         <div class="pending-word" id="pending-row-${i}">
             <div class="pending-word-text">
-                <strong>${escapeHtml(w.de)}</strong> → <strong class="ar">${escapeHtml(w.ar)}</strong>
+                <span>${renderFormattedText(w.de)}</span> → <span class="ar">${renderFormattedText(w.ar)}</span>
                 ${w.ex ? `<div class="example">💡 ${escapeHtml(w.ex)}</div>` : ''}
             </div>
-            <div style="display:flex;gap:4px;">
+            <div class="pending-word-actions">
                 <button class="icon-btn" onclick="editWord(${i})" aria-label="Bearbeiten" title="Bearbeiten">✏️</button>
                 <button class="remove-btn" onclick="removeWord(${i})" aria-label="Entfernen">×</button>
             </div>
         </div>
     `).join('');
+}
+
+/**
+ * Render text with inline markdown formatting → HTML.
+ * Supports **bold** and *italic*. Escapes HTML first for safety.
+ * Order: bold first (** before *) to avoid conflict.
+ */
+function renderFormattedText(text) {
+    if (!text) return '';
+    let html = escapeHtml(text);
+    // **bold** → <b>bold</b>
+    html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    // *italic* → <i>italic</i>
+    html = html.replace(/\*(.+?)\*/g, '<i>$1</i>');
+    return html;
 }
 
 // ===== CARD CREATION =====
@@ -635,12 +1008,12 @@ function showCard() {
             <div class="flashcard ${AppState.flipped ? 'flipped' : ''}" id="flashcardEl" onclick="flipCard()">
                 <div class="flashcard-face flashcard-front">
                     <div class="flashcard-number">${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
-                    <div class="flashcard-text ${card.frontLang === 'ar' ? 'ar' : ''}">${escapeHtml(card.front)}</div>
+                    <div class="flashcard-text ${card.frontLang === 'ar' ? 'ar' : ''}">${renderFormattedText(card.front)}</div>
                     <div class="flashcard-hint">👆 Tap zum Umdrehen · ← → Wischen</div>
                 </div>
                 <div class="flashcard-face flashcard-back">
                     <div class="flashcard-number">${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
-                    <div class="flashcard-text ${card.backLang === 'ar' ? 'ar' : ''}">${escapeHtml(card.back)}</div>
+                    <div class="flashcard-text ${card.backLang === 'ar' ? 'ar' : ''}">${renderFormattedText(card.back)}</div>
                     ${card.ex ? `<div class="flashcard-example">💡 ${escapeHtml(card.ex)}</div>` : ''}
                     <div class="flashcard-hint">👆 Tap zum Zurückdrehen</div>
                 </div>
@@ -786,15 +1159,10 @@ function setupDragDrop() {
 // ===== CSV IMPORT / EXPORT =====
 
 /**
- * Populate the CSV import chapter selector
+ * Populate the CSV import chapter selector (uses grouped format)
  */
 function renderCSVCatSelect() {
-    const sel = document.getElementById('csvTargetCat');
-    if (sel) {
-        sel.innerHTML = AppState.categories.map(c =>
-            `<option value="${c.id}">${c.icon} ${c.name}</option>`
-        ).join('');
-    }
+    updateCatDropdowns();
 }
 
 /**
@@ -852,6 +1220,27 @@ function tryReadCSV(file, catId, encoding, input) {
     };
 
     reader.readAsText(file, encoding);
+}
+
+/**
+ * Clean a CSV field: strip unwanted characters that are noise, not content.
+ * Removes: stray quotes " ' `, exclamation marks !, tildes ~, carets ^, pipes |,
+ * backslashes \, number signs # (at start/end), excess whitespace.
+ * Preserves: hyphens, parentheses, Arabic diacritics, question marks, dots, commas.
+ */
+function cleanCSVField(str) {
+    if (!str) return str;
+    // Strip surrounding quotes (single, double, backtick)
+    str = str.replace(/^["'`]+|["'`]+$/g, '');
+    // Remove stray quotes inside text
+    str = str.replace(/[""`'']/g, '');
+    // Remove ! at start or end
+    str = str.replace(/^!+|!+$/g, '');
+    // Remove other noise characters
+    str = str.replace(/[~^|\\#]/g, '');
+    // Collapse multiple spaces
+    str = str.replace(/\s{2,}/g, ' ');
+    return str.trim();
 }
 
 function processCSVText(text, catId, input) {
@@ -931,6 +1320,13 @@ function processCSVText(text, catId, input) {
             ar = parts[1];
             ex = parts[2] || '';
         }
+
+        if (!de || !ar) { skipped++; return; }
+
+        // Auto-clean unwanted characters from fields
+        de = cleanCSVField(de);
+        ar = cleanCSVField(ar);
+        ex = cleanCSVField(ex);
 
         if (!de || !ar) { skipped++; return; }
 
@@ -1043,6 +1439,12 @@ function renderIslamTab() {
                 <div class="islam-card-name">Gebetszeiten</div>
                 <div class="islam-card-ar">أوقات الصلاة</div>
                 <div class="islam-card-subtitle">Hamburg</div>
+            </div>
+            <div class="islam-card" onclick="QiblaFinder.open()">
+                <div class="islam-card-icon">🧭</div>
+                <div class="islam-card-name">Qibla Finder</div>
+                <div class="islam-card-ar">اتجاه القبلة</div>
+                <div class="islam-card-subtitle">Kompass → Mekka</div>
             </div>
         </div>
     `;

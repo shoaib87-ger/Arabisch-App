@@ -334,5 +334,118 @@ const QuranReader = {
         const container = document.getElementById('quranCanvasContainer');
         container.innerHTML = `<div class="quran-error">${msg}</div>`;
         this.hideLoading();
+    },
+
+    // ===== TABLE OF CONTENTS =====
+    tocData: null,
+    tocActiveTab: 'surah',
+
+    /** Load TOC data from JSON file */
+    async loadTOC() {
+        if (this.tocData) return this.tocData;
+        try {
+            const resp = await fetch('data/quran_toc.json');
+            if (!resp.ok) throw new Error('fetch failed');
+            this.tocData = await resp.json();
+        } catch (e) {
+            console.warn('⚠️ TOC JSON fetch failed');
+            this.tocData = { juz: [], surahs: [] };
+        }
+        return this.tocData;
+    },
+
+    /** Open the TOC bottom sheet */
+    async openTOC() {
+        await this.loadTOC();
+        this.tocActiveTab = 'surah';
+        const sheet = document.getElementById('quranTocSheet');
+        sheet.classList.add('active');
+        sheet.querySelectorAll('.toc-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.tab === 'surah');
+        });
+        const searchInput = document.getElementById('tocSearchInput');
+        if (searchInput) searchInput.value = '';
+        this.renderTocList();
+        setTimeout(() => { if (searchInput) searchInput.focus(); }, 350);
+    },
+
+    /** Close the TOC bottom sheet */
+    closeTOC() {
+        document.getElementById('quranTocSheet').classList.remove('active');
+    },
+
+    /** Switch between Juz and Surah tabs */
+    switchTocTab(tab) {
+        this.tocActiveTab = tab;
+        const sheet = document.getElementById('quranTocSheet');
+        sheet.querySelectorAll('.toc-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.tab === tab);
+        });
+        const searchInput = document.getElementById('tocSearchInput');
+        if (searchInput) searchInput.value = '';
+        this.renderTocList();
+    },
+
+    /** Filter TOC entries by search */
+    filterTOC() {
+        this.renderTocList();
+    },
+
+    /** Render the TOC list */
+    renderTocList() {
+        const list = document.getElementById('tocList');
+        if (!list || !this.tocData) return;
+
+        const query = (document.getElementById('tocSearchInput')?.value || '').toLowerCase().trim();
+        const isJuz = this.tocActiveTab === 'juz';
+        const items = isJuz ? this.tocData.juz : this.tocData.surahs;
+
+        const filtered = items.filter(item => {
+            if (!query) return true;
+            const idStr = String(item.id);
+            const name = (isJuz ? item.label : item.title).toLowerCase();
+            return idStr.startsWith(query) || name.includes(query);
+        });
+
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="toc-empty">Keine Ergebnisse</div>';
+            return;
+        }
+
+        list.innerHTML = filtered.map(item => {
+            const label = isJuz
+                ? `<span class="toc-item-id">${item.id}</span><span class="toc-item-name">${item.label}</span>`
+                : `<span class="toc-item-id">${item.id}</span><span class="toc-item-name">${item.title}</span>`;
+            const isActive = this._isCurrentEntry(item, isJuz);
+            return `
+                <button class="toc-item ${isActive ? 'active' : ''}" onclick="QuranReader.tocJumpToPage(${item.startPage})">
+                    <div class="toc-item-left">${label}</div>
+                    <span class="toc-item-page">S. ${item.startPage}</span>
+                </button>
+            `;
+        }).join('');
+
+        requestAnimationFrame(() => {
+            const active = list.querySelector('.toc-item.active');
+            if (active) active.scrollIntoView({ block: 'center', behavior: 'instant' });
+        });
+    },
+
+    /** Check if entry is current based on currentPage */
+    _isCurrentEntry(item, isJuz) {
+        const entries = isJuz ? this.tocData.juz : this.tocData.surahs;
+        const sorted = [...entries].sort((a, b) => a.startPage - b.startPage);
+        let current = null;
+        for (const e of sorted) {
+            if (e.startPage <= this.currentPage) current = e;
+            else break;
+        }
+        return current && current.id === item.id;
+    },
+
+    /** Close TOC and jump to page */
+    tocJumpToPage(pageNum) {
+        this.closeTOC();
+        this.goToPage(pageNum);
     }
 };

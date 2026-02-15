@@ -41,7 +41,7 @@
     <div class="app-container">
         <!-- Header -->
         <div class="header">
-            <h1><img src="assets/icon-128.png" alt="App Logo" class="header-logo"> Dr. Shoaibs Lern-App</h1>
+            <h1>👨‍⚕️ Dr. Shoaibs Lern-App</h1>
         </div>
 
         <!-- Tab Bar -->
@@ -59,6 +59,30 @@
 
         <!-- ===== UPLOAD TAB ===== -->
         <div id="upload" class="content">
+            <div class="quick-category">
+                <p>Neues Kapitel benötigt?</p>
+                <button class="btn btn-secondary btn-small" onclick="openNewCatModal()">➕ Neues Kapitel</button>
+            </div>
+
+            <!-- CSV Import (most used) -->
+            <div class="word-form">
+                <h3>📥 CSV importieren</h3>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5;">
+                    Format: <code
+                        style="background: var(--bg-light); padding: 2px 6px; border-radius: 4px; font-size: 11px;">deutsch;arabisch</code>
+                    oder <code
+                        style="background: var(--bg-light); padding: 2px 6px; border-radius: 4px; font-size: 11px;">arabisch;deutsch</code><br>
+                    Vorschau zum Prüfen &amp; Bearbeiten vor dem Import
+                </p>
+                <label
+                    style="display: block; margin-bottom: 5px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">Kapitel:</label>
+                <select id="csvTargetCat"></select>
+                <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" onchange="importCSV(this)">
+                <button class="btn btn-primary" onclick="document.getElementById('csvFileInput').click()">📂 CSV-Datei
+                    importieren</button>
+            </div>
+
+            <!-- Photo/PDF Upload -->
             <div class="upload-hero" id="uploadHero">
                 <h3>📷 Foto oder PDF hochladen</h3>
                 <p class="subtitle">Lade ein Foto mit Vokabeln hoch — wird automatisch erkannt!<br>✅ JPG, PNG, PDF
@@ -80,6 +104,7 @@
                 </div>
             </div>
 
+            <!-- Manual Add -->
             <div class="word-form">
                 <h3>✍️ Manuell hinzufügen</h3>
                 <input type="text" id="germanWord" class="form-input" placeholder="Deutsches Wort" autocomplete="off">
@@ -90,28 +115,6 @@
                 <button class="btn btn-primary" onclick="addWord()">➕ Hinzufügen</button>
             </div>
 
-            <!-- CSV Import -->
-            <div class="word-form">
-                <h3>📥 CSV importieren</h3>
-                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5;">
-                    Format: <code
-                        style="background: var(--bg-light); padding: 2px 6px; border-radius: 4px; font-size: 11px;">deutsch;arabisch</code>
-                    oder <code
-                        style="background: var(--bg-light); padding: 2px 6px; border-radius: 4px; font-size: 11px;">arabisch;deutsch</code><br>
-                    Vorschau zum Prüfen & Bearbeiten vor dem Import
-                </p>
-                <label
-                    style="display: block; margin-bottom: 5px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">Kapitel:</label>
-                <select id="csvTargetCat"></select>
-                <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" onchange="importCSV(this)">
-                <button class="btn btn-primary" onclick="document.getElementById('csvFileInput').click()">📂 CSV-Datei
-                    importieren</button>
-            </div>
-
-            <div class="quick-category">
-                <p>Neues Kapitel benötigt?</p>
-                <button class="btn btn-secondary btn-small" onclick="openNewCatModal()">➕ Neues Kapitel</button>
-            </div>
 
             <div id="pendingContainer" class="hidden">
                 <div class="pending-box">
@@ -154,7 +157,10 @@
         <div class="quran-header">
             <button class="quran-close-btn" onclick="QuranReader.close()">✕</button>
             <h2 class="quran-title">📖 القرآن الكريم</h2>
-            <button class="quran-goto-btn" onclick="quranGoToPage()">📄</button>
+            <div class="quran-header-right">
+                <button class="quran-toc-btn" onclick="QuranReader.openTOC()" title="Inhaltsverzeichnis">☰</button>
+                <button class="quran-goto-btn" onclick="quranGoToPage()">📄</button>
+            </div>
         </div>
         <div class="quran-loading" id="quranLoading" style="display:none;">📖 Laden...</div>
         <div class="quran-canvas-container" id="quranCanvasContainer"></div>
@@ -167,6 +173,35 @@
                 <span class="nav-arrow">›</span>
             </button>
         </div>
+
+        <!-- TOC Bottom Sheet -->
+        <div id="quranTocSheet" class="toc-sheet">
+            <div class="toc-sheet-backdrop" onclick="QuranReader.closeTOC()"></div>
+            <div class="toc-sheet-panel">
+                <div class="toc-sheet-handle" onclick="QuranReader.closeTOC()"><span></span></div>
+                <h3 class="toc-sheet-title">📑 Inhaltsverzeichnis</h3>
+                <div class="toc-tabs">
+                    <button class="toc-tab active" data-tab="surah"
+                        onclick="QuranReader.switchTocTab('surah')">Surah</button>
+                    <button class="toc-tab" data-tab="juz" onclick="QuranReader.switchTocTab('juz')">Juz</button>
+                </div>
+                <div class="toc-search">
+                    <input type="text" id="tocSearchInput" class="toc-search-input"
+                        placeholder="🔍 Suche (Nr. oder Name)..." oninput="QuranReader.filterTOC()" autocomplete="off">
+                </div>
+                <div class="toc-list" id="tocList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== QIBLA FINDER OVERLAY ===== -->
+    <div id="qiblaOverlay" class="qibla-overlay">
+        <div class="qibla-header">
+            <button class="qibla-close-btn" onclick="QiblaFinder.close()">✕</button>
+            <h2 class="qibla-title">🧭 القبلة</h2>
+            <div style="width: 40px"></div>
+        </div>
+        <div class="qibla-content" id="qiblaContent"></div>
     </div>
 
     <!-- ===== MODALS ===== -->
@@ -203,6 +238,7 @@
     <script src="quiz.js"></script>
     <script src="quran-data.js"></script>
     <script src="quran-reader.js"></script>
+    <script src="qibla-finder.js"></script>
     <script src="prayer-times.js"></script>
     <script src="app.js"></script>
 </body>
