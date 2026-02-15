@@ -739,8 +739,10 @@ function setupSwipeListeners() {
         const dx = endX - startX;
         const el = document.getElementById('flashcardEl');
 
+        // ALWAYS clear ALL inline styles so CSS .flipped class controls transform
         if (el) {
             el.style.transition = '';
+            el.style.transform = '';
             el.style.opacity = '';
         }
 
@@ -750,11 +752,8 @@ function setupSwipeListeners() {
             nextCard();
         } else if (dx > swipeThreshold) {
             prevCard();
-        } else {
-            if (el) {
-                el.style.transform = AppState.flipped ? 'rotateY(180deg)' : '';
-            }
         }
+        // Bounce-back: inline styles already cleared above, CSS handles state
     }, { passive: true });
 }
 

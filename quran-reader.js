@@ -16,6 +16,24 @@ const QuranReader = {
     pageCache: new Map(),
     maxCacheSize: 5,
 
+    // Render generation counter — prevents race conditions
+    renderGeneration: 0,
+    currentRenderTask: null,
+
+    /**
+     * Clone a canvas WITH its pixel data (cloneNode does NOT copy pixels)
+     */
+    cloneCanvasWithPixels(srcCanvas) {
+        const newCanvas = document.createElement('canvas');
+        newCanvas.className = srcCanvas.className || 'quran-page-canvas';
+        newCanvas.width = srcCanvas.width;
+        newCanvas.height = srcCanvas.height;
+        newCanvas.style.cssText = srcCanvas.style.cssText;
+        const ctx = newCanvas.getContext('2d');
+        ctx.drawImage(srcCanvas, 0, 0);
+        return newCanvas;
+    },
+
     /**
      * Open the Quran reader
      */
@@ -59,16 +77,31 @@ const QuranReader = {
      */
     close() {
         this.isOpen = false;
+        // Cancel any in-flight render
+        this.renderGeneration++;
+        if (this.currentRenderTask) {
+            try { this.currentRenderTask.cancel(); } catch (e) { /* ignore */ }
+            this.currentRenderTask = null;
+        }
         const overlay = document.getElementById('quranOverlay');
         overlay.classList.remove('active');
         document.body.style.overflow = '';
     },
 
     /**
-     * Render a specific page
+     * Render a specific page (race-safe, with retry)
      */
-    async renderPage(pageNum) {
+    async renderPage(pageNum, _retryCount = 0) {
         if (pageNum < 1 || pageNum > this.totalPages) return;
+
+        // Increment generation to invalidate any in-flight renders
+        const myGeneration = ++this.renderGeneration;
+
+        // Cancel previous render task if still running
+        if (this.currentRenderTask) {
+            try { this.currentRenderTask.cancel(); } catch (e) { /* ignore */ }
+            this.currentRenderTask = null;
+        }
 
         this.currentPage = pageNum;
         localStorage.setItem('quranPage', pageNum);
@@ -76,10 +109,12 @@ const QuranReader = {
 
         const container = document.getElementById('quranCanvasContainer');
 
-        // Check cache first
+        // Check cache first — display a pixel-copy of the cached canvas
         if (this.pageCache.has(pageNum)) {
+            const cachedCanvas = this.pageCache.get(pageNum);
+            const displayCanvas = this.cloneCanvasWithPixels(cachedCanvas);
             container.innerHTML = '';
-            container.appendChild(this.pageCache.get(pageNum).cloneNode(true));
+            container.appendChild(displayCanvas);
             this.hideLoading();
             this.preloadAdjacent(pageNum);
             return;
@@ -89,6 +124,9 @@ const QuranReader = {
 
         try {
             const page = await this.pdf.getPage(pageNum);
+
+            // Abort if a newer render was requested
+            if (myGeneration !== this.renderGeneration) return;
 
             // Calculate scale to fit screen width (full width)
             const containerWidth = container.clientWidth || window.innerWidth;
@@ -105,19 +143,21 @@ const QuranReader = {
             canvas.style.height = (scaledViewport.height / dpr) + 'px';
 
             const ctx = canvas.getContext('2d');
-            await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+            const renderTask = page.render({ canvasContext: ctx, viewport: scaledViewport });
+            this.currentRenderTask = renderTask;
+            await renderTask.promise;
+            this.currentRenderTask = null;
 
-            // Store in cache
+            // Abort if a newer render was requested while we were rendering
+            if (myGeneration !== this.renderGeneration) return;
+
+            // Store original rendered canvas in cache
             this.addToCache(pageNum, canvas);
 
-            // Display
+            // Display a pixel-copy so cache stays intact
+            const displayCanvas = this.cloneCanvasWithPixels(canvas);
             container.innerHTML = '';
-            container.appendChild(canvas.cloneNode(true));
-
-            // Copy the rendered content to the cloned canvas
-            const displayCanvas = container.querySelector('canvas');
-            const displayCtx = displayCanvas.getContext('2d');
-            displayCtx.drawImage(canvas, 0, 0);
+            container.appendChild(displayCanvas);
 
             this.hideLoading();
 
@@ -125,8 +165,21 @@ const QuranReader = {
             this.preloadAdjacent(pageNum);
 
         } catch (err) {
+            // Ignore cancellation errors from stale renders
+            if (err && err.name === 'RenderingCancelledException') return;
+            if (myGeneration !== this.renderGeneration) return;
+
             console.error('❌ Page Render Error:', err);
+
+            // Retry once on failure
+            if (_retryCount < 1) {
+                console.log(`🔄 Retry rendering page ${pageNum}...`);
+                await this.renderPage(pageNum, _retryCount + 1);
+                return;
+            }
+
             this.hideLoading();
+            this.showError(`Fehler beim Rendern von Seite ${pageNum}`);
         }
     },
 

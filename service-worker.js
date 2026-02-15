@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dr-shoaibs-app-v3';
+const CACHE_NAME = 'dr-shoaibs-app-v4';
 
 const CORE_ASSETS = [
   './',
@@ -9,6 +9,12 @@ const CORE_ASSETS = [
   './ocr.js',
   './pdf-handler.js',
   './manifest.json',
+  './assets/icon-192.png',
+  './assets/icon-512.png',
+  './assets/icon-180.png',
+  './assets/icon-128.png',
+  './assets/icon-32.png',
+  './assets/icon-16.png',
   'https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap'
 ];
 
@@ -21,7 +27,7 @@ const CDN_ASSETS = [
 
 // Installation — Cache alle Core-Assets
 self.addEventListener('install', event => {
-  console.log('Service Worker: Installing v3...');
+  console.log('Service Worker: Installing v4...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
