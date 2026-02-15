@@ -117,19 +117,8 @@ function switchTab(tabName) {
     if (contentEl) contentEl.classList.add('active');
 
     if (tabName === 'categories') renderCategories();
-    if (tabName === 'stats') Stats.render(AppState.categories, AppState.cards);
-    if (tabName === 'learn') {
-        // If no category selected, show empty state
-        if (!AppState.currentCat) {
-            const learnArea = document.getElementById('learnArea');
-            learnArea.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">🎯</div>
-                    <p>Wähle ein Kapitel<br>und starte eine Lernsession!</p>
-                </div>
-            `;
-        }
-    }
+    if (tabName === 'islam') renderIslamTab();
+    if (tabName !== 'islam') PrayerTimes.stopCountdown();
 }
 
 // ===== KAPITEL MANAGEMENT =====
@@ -269,8 +258,7 @@ function selectCat(id) {
         return;
     }
 
-    // Switch to learn tab and show mode selection
-    switchTab('learn');
+    // Show learn modes inside categories tab
     showLearnModes();
 }
 
@@ -283,13 +271,14 @@ function showLearnModes() {
     const prog = Stats.getChapterProgress(cat.id, AppState.cards);
     const hasEnoughForQuiz = cardCount >= 4; // Need 4+ for good distractors
 
-    const learnArea = document.getElementById('learnArea');
+    const learnArea = document.getElementById('categoryGrid');
     learnArea.innerHTML = `
+      <div style="grid-column: 1 / -1;">
         <div class="learn-chapter-header">
             <button class="back-btn" onclick="switchTab('categories')">←</button>
             <h3>${cat.icon} ${escapeHtml(cat.name)}</h3>
         </div>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; text-align: center;">
             ${cardCount} Karten · ${prog.pct}% gemeistert
         </p>
 
@@ -320,6 +309,7 @@ function showLearnModes() {
                 </div>
             </div>
         </div>
+      </div>
     `;
 }
 
@@ -506,6 +496,38 @@ function removeWord(i) {
     renderPending();
 }
 
+function editWord(i) {
+    const w = AppState.pending[i];
+    if (!w) return;
+    const row = document.getElementById(`pending-row-${i}`);
+    if (!row) return;
+    row.innerHTML = `
+        <div class="pending-edit">
+            <input type="text" id="editDe${i}" value="${escapeHtml(w.de)}" class="form-input" placeholder="Deutsch" style="margin-bottom:4px;">
+            <input type="text" id="editAr${i}" value="${escapeHtml(w.ar)}" class="form-input arabic" placeholder="Arabisch" dir="rtl" style="margin-bottom:4px;">
+            <div style="display:flex;gap:6px;">
+                <button class="btn btn-primary btn-small" onclick="saveEditWord(${i})">✅ OK</button>
+                <button class="btn btn-secondary btn-small" onclick="renderPending()">❌</button>
+            </div>
+        </div>
+    `;
+    document.getElementById(`editDe${i}`).focus();
+}
+
+function saveEditWord(i) {
+    const de = document.getElementById(`editDe${i}`).value.trim();
+    const ar = document.getElementById(`editAr${i}`).value.trim();
+    if (!de || !ar) {
+        showToast('⚠️ Beide Felder ausfüllen!', 'warning');
+        return;
+    }
+    AppState.pending[i].de = de;
+    AppState.pending[i].ar = ar;
+    Storage.savePending();
+    renderPending();
+    showToast('✅ Geändert!', 'success');
+}
+
 function renderPending() {
     const container = document.getElementById('pendingContainer');
     const list = document.getElementById('pendingList');
@@ -518,20 +540,31 @@ function renderPending() {
 
     container.classList.remove('hidden');
     count.textContent = AppState.pending.length;
+
+    // Sync targetCat dropdown with csvTargetCat if set
+    if (AppState.csvTargetCat) {
+        const targetDropdown = document.getElementById('targetCat');
+        if (targetDropdown) targetDropdown.value = AppState.csvTargetCat;
+    }
+
     list.innerHTML = AppState.pending.map((w, i) => `
-        <div class="pending-word">
+        <div class="pending-word" id="pending-row-${i}">
             <div class="pending-word-text">
                 <strong>${escapeHtml(w.de)}</strong> → <strong class="ar">${escapeHtml(w.ar)}</strong>
                 ${w.ex ? `<div class="example">💡 ${escapeHtml(w.ex)}</div>` : ''}
             </div>
-            <button class="remove-btn" onclick="removeWord(${i})" aria-label="Entfernen">×</button>
+            <div style="display:flex;gap:4px;">
+                <button class="icon-btn" onclick="editWord(${i})" aria-label="Bearbeiten" title="Bearbeiten">✏️</button>
+                <button class="remove-btn" onclick="removeWord(${i})" aria-label="Entfernen">×</button>
+            </div>
         </div>
     `).join('');
 }
 
 // ===== CARD CREATION =====
 function createCards() {
-    const catId = document.getElementById('targetCat').value;
+    // Use CSV target chapter if set, otherwise use dropdown
+    const catId = AppState.csvTargetCat || document.getElementById('targetCat').value;
     const dir = document.querySelector('input[name="dir"]:checked').value;
 
     if (!catId) { showToast('⚠️ Kapitel wählen!', 'warning'); return; }
@@ -560,6 +593,7 @@ function createCards() {
     });
 
     Storage.save();
+    AppState.csvTargetCat = null; // Clear CSV target
     fullReset();
 
     const cat = AppState.categories.find(c => c.id === catId);
@@ -591,7 +625,8 @@ function showCard() {
     Stats.trackActivity('flashcard');
     Stats.checkGoalMet();
 
-    document.getElementById('learnArea').innerHTML = `
+    document.getElementById('categoryGrid').innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center;">
         <div class="learn-chapter-header">
             <button class="back-btn" onclick="showLearnModes()">←</button>
             <h3>${cat.icon} ${escapeHtml(cat.name)} — Karteikarten</h3>
@@ -615,6 +650,7 @@ function showCard() {
             <button class="btn btn-secondary" onclick="prevCard()" ${AppState.currentIdx === 0 ? 'disabled' : ''}>← Zurück</button>
             <button class="btn btn-primary" onclick="nextCard()">Weiter →</button>
         </div>
+      </div>
     `;
 
     setupSwipeListeners();
@@ -771,6 +807,7 @@ function isArabic(str) {
 
 /**
  * Import CSV — auto-detects column order (DE;AR or AR;DE)
+ * Auto-detects encoding (UTF-8 → fallback Windows-1252)
  * Creates only DE→AR cards
  */
 function importCSV(input) {
@@ -784,68 +821,144 @@ function importCSV(input) {
     }
 
     const file = input.files[0];
+
+    // Try UTF-8 first, then fallback to Windows-1252
+    tryReadCSV(file, catId, 'UTF-8', input);
+}
+
+function tryReadCSV(file, catId, encoding, input) {
     const reader = new FileReader();
 
     reader.onload = function (e) {
         const text = e.target.result;
-        const lines = text.split(/\r?\n/).filter(l => l.trim());
 
-        if (lines.length < 2) {
-            showToast('⚠️ CSV leer oder nur Überschrift', 'warning');
-            input.value = '';
+        // Check for garbled text: replacement chars or lots of ? where Arabic should be
+        const hasGarbled = text.includes('\uFFFD') || /\?{2,}/.test(text);
+        const hasArabic = isArabic(text);
+
+        if (encoding === 'UTF-8' && !hasArabic && hasGarbled) {
+            console.log('⚠️ UTF-8 fehlgeschlagen, versuche Windows-1252...');
+            tryReadCSV(file, catId, 'windows-1252', input);
             return;
         }
 
-        const dataLines = lines.slice(1);
-        let imported = 0;
-        let skipped = 0;
-
-        dataLines.forEach(line => {
-            const sep = line.includes(';') ? ';' : '\t';
-            const parts = line.split(sep).map(s => s.trim());
-
-            let col1 = parts[0] || '';
-            let col2 = parts[1] || '';
-            const ex = parts[2] || '';
-
-            if (!col1 || !col2) { skipped++; return; }
-
-            // Auto-detect: if col1 is Arabic, swap so de=col2, ar=col1
-            let de, ar;
-            if (isArabic(col1)) {
-                ar = col1;
-                de = col2;
-            } else {
-                de = col1;
-                ar = col2;
-            }
-
-            // Create only DE → AR card
-            AppState.cards.push({
-                front: de, back: ar,
-                frontLang: 'de', backLang: 'ar',
-                ex, cat: catId,
-                score: 0, correctCount: 0, wrongCount: 0, lastSeen: null
-            });
-            imported++;
-        });
-
-        Storage.save();
-        renderCategories();
-        input.value = '';
-
-        const cat = AppState.categories.find(c => c.id === catId);
-        const catName = cat ? cat.name : '';
-
-        if (imported > 0) {
-            showToast(`✅ ${imported} Karten importiert in "${catName}"!`, 'success');
+        // If still no Arabic after both encodings, try ISO-8859-6 (Arabic encoding)
+        if (encoding === 'windows-1252' && !hasArabic) {
+            console.log('⚠️ Windows-1252 fehlgeschlagen, versuche ISO-8859-6...');
+            tryReadCSV(file, catId, 'ISO-8859-6', input);
+            return;
         }
-        if (skipped > 0) {
-            showToast(`⚠️ ${skipped} Zeilen übersprungen`, 'warning');
-        }
+
+        processCSVText(text, catId, input);
     };
 
-    reader.readAsText(file, 'UTF-8');
+    reader.readAsText(file, encoding);
+}
+
+function processCSVText(text, catId, input) {
+    // Remove BOM if present
+    const cleanText = text.replace(/^\uFEFF/, '');
+    const lines = cleanText.split(/\r?\n/).filter(l => l.trim());
+
+    if (lines.length < 1) {
+        showToast('⚠️ CSV ist leer', 'warning');
+        input.value = '';
+        return;
+    }
+
+    // Auto-detect if line 1 is a header: check if it contains Arabic
+    // If first line has no Arabic, it's likely a header → skip it
+    let dataLines;
+    const firstLine = lines[0];
+    if (!isArabic(firstLine) && /[a-zA-ZäöüÄÖÜ]/.test(firstLine)) {
+        dataLines = lines.slice(1); // Skip header
+    } else {
+        dataLines = lines; // No header, all data
+    }
+
+    if (dataLines.length === 0) {
+        showToast('⚠️ Keine Daten in CSV', 'warning');
+        input.value = '';
+        return;
+    }
+
+    let imported = 0;
+    let skipped = 0;
+
+    dataLines.forEach(rawLine => {
+        // Clean up Excel quoting: strip surrounding quotes and leading/trailing semicolons
+        let line = rawLine.trim();
+        // Remove wrapping quotes: ";data;data" → ;data;data
+        if (line.startsWith('"') && line.endsWith('"')) {
+            line = line.slice(1, -1).trim();
+        }
+        // Remove leading semicolons: ;data;data → data;data
+        while (line.startsWith(';')) {
+            line = line.slice(1).trim();
+        }
+
+        // Detect separator: try semicolon, then tab, then comma
+        let sep = ';';
+        if (!line.includes(';') && line.includes('\t')) sep = '\t';
+        else if (!line.includes(';') && !line.includes('\t') && line.includes(',')) sep = ',';
+
+        // Split and filter out empty parts (handles double separators like ;;)
+        const parts = line.split(sep).map(s => s.trim()).filter(s => s.length > 0);
+
+        if (parts.length < 2) { skipped++; return; }
+
+        // Find the Arabic part and the German part
+        let de = '', ar = '', ex = '';
+
+        // Check each part for Arabic content
+        const arabicParts = [];
+        const otherParts = [];
+
+        parts.forEach(p => {
+            if (isArabic(p)) {
+                arabicParts.push(p);
+            } else {
+                otherParts.push(p);
+            }
+        });
+
+        if (arabicParts.length > 0 && otherParts.length > 0) {
+            ar = arabicParts.join(' '); // Join if Arabic split across parts
+            de = otherParts[0];
+            ex = otherParts[1] || '';
+        } else {
+            // Fallback: first two non-empty parts
+            de = parts[0];
+            ar = parts[1];
+            ex = parts[2] || '';
+        }
+
+        if (!de || !ar) { skipped++; return; }
+
+        console.log(`📥 Preview: DE="${de}" | AR="${ar}"`);
+        AppState.pending.push({ de, ar, ex });
+        imported++;
+    });
+
+    // Store the target chapter for later creation
+    AppState.csvTargetCat = catId;
+
+    Storage.savePending();
+    renderPending();
+    input.value = '';
+
+    // Scroll to pending list so user sees the preview
+    setTimeout(() => {
+        const pending = document.getElementById('pendingContainer');
+        if (pending) pending.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+
+    if (imported > 0) {
+        showToast(`📋 ${imported} Wörter geladen — prüfe unten & klicke "Karten erstellen"!`, 'success');
+    }
+    if (skipped > 0) {
+        showToast(`⚠️ ${skipped} Zeilen übersprungen`, 'warning');
+    }
 }
 
 /**
@@ -906,6 +1019,47 @@ function escapeHtml(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+// ===== ISLAM TAB =====
+function renderIslamTab() {
+    const area = document.getElementById('islamArea');
+    const prayerContent = document.getElementById('prayerContent');
+    prayerContent.style.display = 'none';
+    area.style.display = 'block';
+
+    const savedPage = localStorage.getItem('quranPage');
+    const resumeHint = savedPage ? `<div class="islam-card-subtitle">📖 Seite ${savedPage} fortsetzen</div>` : '';
+
+    area.innerHTML = `
+        <div class="islam-subcategories">
+            <div class="islam-card" onclick="QuranReader.open()">
+                <div class="islam-card-icon">📖</div>
+                <div class="islam-card-name">Quran</div>
+                <div class="islam-card-ar">القرآن الكريم</div>
+                ${resumeHint}
+            </div>
+            <div class="islam-card" onclick="showPrayerTimes()">
+                <div class="islam-card-icon">🕌</div>
+                <div class="islam-card-name">Gebetszeiten</div>
+                <div class="islam-card-ar">أوقات الصلاة</div>
+                <div class="islam-card-subtitle">Hamburg</div>
+            </div>
+        </div>
+    `;
+}
+
+function showPrayerTimes() {
+    const area = document.getElementById('islamArea');
+    const prayerContent = document.getElementById('prayerContent');
+    area.style.display = 'none';
+    prayerContent.style.display = 'block';
+    PrayerTimes.render(prayerContent);
+}
+
+function quranGoToPage() {
+    const page = prompt('Seitenzahl eingeben:', QuranReader.currentPage);
+    if (page) QuranReader.goToPage(parseInt(page));
 }
 
 // ===== INIT =====

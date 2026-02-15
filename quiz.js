@@ -248,8 +248,9 @@ const QuizEngine = {
             ? 'Wie heißt das auf Arabisch?'
             : 'Was bedeutet dieses Wort?';
 
-        const learnArea = document.getElementById('learnArea');
+        const learnArea = document.getElementById('categoryGrid');
         learnArea.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center;">
             <div class="quiz-container">
                 <div class="learn-chapter-header">
                     <button class="back-btn" onclick="showLearnModes()">←</button>
@@ -277,6 +278,7 @@ const QuizEngine = {
                     `).join('')}
                 </div>
             </div>
+          </div>
         `;
     },
 
@@ -298,8 +300,9 @@ const QuizEngine = {
         const cat = AppState.categories.find(c => c.id === this.session.catId);
         const catName = cat ? cat.name : '';
 
-        const learnArea = document.getElementById('learnArea');
+        const learnArea = document.getElementById('categoryGrid');
         learnArea.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center;">
             <div class="quiz-result">
                 <div class="quiz-result-icon">${emoji}</div>
                 <h3>${message}</h3>
@@ -314,10 +317,9 @@ const QuizEngine = {
                 <button class="btn btn-secondary mb-sm" onclick="showLearnModes()">
                     ← Zurück zu ${escapeHtml(catName)}
                 </button>
-                <button class="btn btn-secondary" onclick="switchTab('stats')">
-                    📊 Statistik ansehen
-                </button>
+
             </div>
+          </div>
         `;
     }
 };

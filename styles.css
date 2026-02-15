@@ -628,9 +628,12 @@ body {
     cursor: pointer;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 16px;
     transition: var(--transition);
     box-shadow: var(--shadow);
+    width: 100%;
+    text-align: center;
 }
 
 .learn-mode-card:active {
@@ -1480,4 +1483,513 @@ select {
     .category-grid {
         gap: 10px;
     }
+}
+
+/* ===== ISLAM TAB ===== */
+.islam-subcategories {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 8px 0;
+}
+
+.islam-card {
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    padding: 28px 16px;
+    text-align: center;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.islam-card:active {
+    transform: scale(0.96);
+}
+
+.islam-card-icon {
+    font-size: 52px;
+    margin-bottom: 12px;
+}
+
+.islam-card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.islam-card-ar {
+    font-family: 'Amiri', 'Noto Naskh Arabic', serif;
+    font-size: 18px;
+    color: var(--gold);
+    direction: rtl;
+}
+
+.islam-card-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+/* ===== QURAN READER OVERLAY ===== */
+.quran-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #f9f5ee;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.quran-overlay.active {
+    transform: translateY(0);
+}
+
+.quran-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #1a5e3a, #0d3b24);
+    color: #fff;
+    flex-shrink: 0;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+}
+
+.quran-close-btn,
+.quran-goto-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quran-title {
+    font-family: 'Amiri', serif;
+    font-size: 20px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.quran-canvas-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 0;
+    -webkit-overflow-scrolling: touch;
+    perspective: 1200px;
+    background: #f9f5ee;
+}
+
+.quran-page-canvas {
+    width: 100% !important;
+    height: auto !important;
+    display: block;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* Page flip animations */
+.page-exit-left {
+    animation: pageExitLeft 0.25s ease-in forwards;
+}
+
+.page-exit-right {
+    animation: pageExitRight 0.25s ease-in forwards;
+}
+
+.page-enter-right {
+    animation: pageEnterRight 0.3s ease-out forwards;
+}
+
+.page-enter-left {
+    animation: pageEnterLeft 0.3s ease-out forwards;
+}
+
+@keyframes pageExitLeft {
+    0% {
+        transform: rotateY(0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: rotateY(-25deg) scale(0.9);
+        opacity: 0;
+    }
+}
+
+@keyframes pageExitRight {
+    0% {
+        transform: rotateY(0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: rotateY(25deg) scale(0.9);
+        opacity: 0;
+    }
+}
+
+@keyframes pageEnterRight {
+    0% {
+        transform: rotateY(25deg) scale(0.9);
+        opacity: 0;
+    }
+
+    100% {
+        transform: rotateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes pageEnterLeft {
+    0% {
+        transform: rotateY(-25deg) scale(0.9);
+        opacity: 0;
+    }
+
+    100% {
+        transform: rotateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+.quran-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px 32px;
+    border-radius: var(--radius);
+    font-size: 16px;
+    color: var(--text-secondary);
+    box-shadow: var(--shadow);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.quran-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #1a5e3a, #0d3b24);
+    flex-shrink: 0;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+
+.quran-nav-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #fff;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 28px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quran-nav-btn:active {
+    transform: scale(0.9);
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.quran-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.nav-arrow {
+    display: inline-block;
+    animation: arrowPulse 2s ease-in-out infinite;
+}
+
+@keyframes arrowPulse {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(3px);
+    }
+}
+
+.quran-nav-btn:first-child .nav-arrow {
+    animation-name: arrowPulseLeft;
+}
+
+@keyframes arrowPulseLeft {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(-3px);
+    }
+}
+
+.quran-page-info {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.quran-error {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-muted);
+    font-size: 16px;
+}
+
+/* ===== PRAYER TIMES ===== */
+.prayer-header-card {
+    background: linear-gradient(135deg, #1a5e3a 0%, #0d3b24 100%);
+    color: #fff;
+    border-radius: var(--radius-lg);
+    padding: 28px 20px 22px;
+    text-align: center;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.prayer-back-btn {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #fff;
+    font-size: 22px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.prayer-mosque-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.prayer-header-card h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.prayer-city {
+    font-size: 14px;
+    opacity: 0.85;
+}
+
+.prayer-hijri-date {
+    font-family: 'Amiri', serif;
+    font-size: 18px;
+    margin-top: 8px;
+    direction: rtl;
+}
+
+.prayer-greg-date {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+/* Next Prayer Card */
+.next-prayer-card {
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 16px;
+    border: 2px solid var(--gold);
+    box-shadow: 0 4px 20px var(--gold-glow);
+}
+
+.next-prayer-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.next-prayer-name {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.next-prayer-icon {
+    font-size: 26px;
+}
+
+.next-prayer-ar {
+    font-family: 'Amiri', serif;
+    color: var(--gold);
+    font-size: 20px;
+}
+
+.next-prayer-time {
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--gold-dark);
+    margin-bottom: 12px;
+}
+
+/* Countdown */
+.countdown-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.countdown-segment {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 50px;
+}
+
+.countdown-number {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1a5e3a;
+    font-variant-numeric: tabular-nums;
+}
+
+.countdown-separator {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding-bottom: 16px;
+}
+
+.countdown-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+/* Prayer times list */
+.prayer-times-list {
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+.prayer-time-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+}
+
+.prayer-time-row:last-child {
+    border-bottom: none;
+}
+
+.prayer-time-row.prayer-past {
+    opacity: 0.45;
+}
+
+.prayer-time-row.prayer-next {
+    background: linear-gradient(135deg, rgba(26, 94, 58, 0.06), rgba(200, 149, 46, 0.06));
+    border-left: 3px solid var(--gold);
+}
+
+.prayer-time-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.prayer-time-icon {
+    font-size: 24px;
+}
+
+.prayer-time-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.prayer-time-ar {
+    font-family: 'Amiri', serif;
+    font-size: 16px;
+    color: var(--gold-dark);
+    direction: rtl;
+    margin-top: 2px;
+}
+
+.prayer-time-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.prayer-loading {
+    text-align: center;
+    padding: 48px 24px;
+}
+
+.prayer-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: #1a5e3a;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.prayer-error {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-muted);
 }
