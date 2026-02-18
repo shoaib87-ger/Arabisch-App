@@ -1,0 +1,20 @@
+{
+  "name": "arabisch-app",
+  "version": "1.0.0",
+  "description": "Dr. Shoaibs Lern-App — Deutsch-Arabisch Lernkarten",
+  "private": true,
+  "scripts": {
+    "copy": "node ../tools/copy-web-to-app.js",
+    "sync": "npx cap sync ios",
+    "build": "node ../tools/copy-web-to-app.js && npx cap sync ios",
+    "open": "npx cap open ios"
+  },
+  "author": "Dr. Shoaib",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/haptics": "^8.0.0",
+    "@capacitor/ios": "^8.1.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+    "appId": "com.drshoaib.arabischapp",
+    "appName": "Lern-App",
+    "webDir": "www",
+    "server": {
+        "androidScheme": "https",
+        "iosScheme": "capacitor"
+    },
+    "ios": {
+        "contentInset": "never",
+        "backgroundColor": "#c8952e",
+        "preferredContentMode": "mobile",
+        "allowsLinkPreview": false,
+        "scrollEnabled": false
+    }
+}

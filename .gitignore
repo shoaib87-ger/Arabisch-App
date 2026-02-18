@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Capacitor generated
+app/www/
+app/ios/App/Pods/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+*.xcarchive
