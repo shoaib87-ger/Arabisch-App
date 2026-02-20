@@ -1,5 +1,5 @@
 @echo off
-title Dr. Shoaibs Lern-App
+title Lern-App
 echo.
 echo  ========================================
 echo   Dr. Shoaibs Lern-App wird gestartet...

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dr-shoaibs-app-v14';
+const CACHE_NAME = 'lern-app-v15';
 
 const CORE_ASSETS = [
   './',

@@ -15,11 +15,13 @@ const EpubViewer = {
     bookId: null,
     locationsReady: false,
     totalLocations: 0,
+    _isAnimating: false,
 
     async open(blob, bookId, lastLocation) {
         this.bookId = bookId;
+        this._isAnimating = false;
         const content = document.getElementById('ebookContent');
-        content.innerHTML = '<div id="epubArea" style="width:100%;height:100%;"></div>';
+        content.innerHTML = '<div class="epub-flip-wrapper" id="epubFlipWrapper"><div id="epubArea" style="width:100%;height:100%;"></div></div>';
 
         const arrayBuffer = await blob.arrayBuffer();
         this.book = ePub(arrayBuffer);
@@ -111,12 +113,48 @@ const EpubViewer = {
         if (e.key === 'ArrowLeft') this.prev();
     },
 
+    /** Animate page flip with 3D book page turn — same as PDF viewer */
+    _animateFlip(direction) {
+        if (!this.rendition) return;
+        this._isAnimating = true;
+        const wrapper = document.getElementById('epubFlipWrapper');
+        if (!wrapper) { this._isAnimating = false; return; }
+
+        // Add shadow overlay for depth
+        const shadow = document.createElement('div');
+        shadow.className = 'page-flip-shadow' + (direction === 'right' ? ' reverse' : '');
+        wrapper.style.position = 'relative';
+        wrapper.appendChild(shadow);
+
+        const exitClass = direction === 'left' ? 'page-exit-left' : 'page-exit-right';
+        wrapper.classList.add(exitClass);
+
+        setTimeout(() => {
+            wrapper.classList.remove(exitClass);
+            shadow.remove();
+            // Perform the actual epub.js navigation
+            if (direction === 'left') {
+                this.rendition.next();
+            } else {
+                this.rendition.prev();
+            }
+            const enterClass = direction === 'left' ? 'page-enter-right' : 'page-enter-left';
+            wrapper.classList.add(enterClass);
+            setTimeout(() => {
+                wrapper.classList.remove(enterClass);
+                this._isAnimating = false;
+            }, 350);
+        }, 350);
+    },
+
     next() {
-        if (this.rendition) this.rendition.next();
+        if (this._isAnimating) return;
+        this._animateFlip('left');
     },
 
     prev() {
-        if (this.rendition) this.rendition.prev();
+        if (this._isAnimating) return;
+        this._animateFlip('right');
     },
 
     async getTOC() {
@@ -158,6 +196,7 @@ const EpubViewer = {
         this.bookId = null;
         this.locationsReady = false;
         this.totalLocations = 0;
+        this._isAnimating = false;
     }
 };
 
@@ -207,10 +246,13 @@ const PdfViewer = {
             const ctx = canvas.getContext('2d');
             const container = document.getElementById('pdfContainer');
 
-            // Scale to fit width (with optional zoom)
+            // Fit-to-page: scale to fit both width AND height so entire page is visible
             const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
             const viewport = page.getViewport({ scale: 1 });
-            const baseScale = containerWidth / viewport.width;
+            const scaleW = containerWidth / viewport.width;
+            const scaleH = containerHeight / viewport.height;
+            const baseScale = Math.min(scaleW, scaleH);
             const scale = baseScale * (this._zoomScale || 1);
             const scaledVp = page.getViewport({ scale });
 
@@ -264,24 +306,32 @@ const PdfViewer = {
         }, { passive: true });
     },
 
-    /** Animate page flip like Quran reader */
+    /** Animate page flip — realistic 3D book page turn */
     _animateFlip(direction, targetPage) {
         this._isAnimating = true;
         const container = document.getElementById('pdfContainer');
         if (!container) { this._isAnimating = false; return; }
-        const exitClass = direction === 'left' ? 'page-exit-left' : 'page-exit-right';
 
+        // Add shadow overlay for depth
+        const shadow = document.createElement('div');
+        shadow.className = 'page-flip-shadow' + (direction === 'right' ? ' reverse' : '');
+        container.style.position = 'relative';
+        container.appendChild(shadow);
+
+        const exitClass = direction === 'left' ? 'page-exit-left' : 'page-exit-right';
         container.classList.add(exitClass);
+
         setTimeout(async () => {
             container.classList.remove(exitClass);
+            shadow.remove();
             await this._renderPage(targetPage);
             const enterClass = direction === 'left' ? 'page-enter-right' : 'page-enter-left';
             container.classList.add(enterClass);
             setTimeout(() => {
                 container.classList.remove(enterClass);
                 this._isAnimating = false;
-            }, 300);
-        }, 250);
+            }, 350);
+        }, 350);
     },
 
     next() {
@@ -441,16 +491,24 @@ const TextViewer = {
         }, { passive: true });
     },
 
-    /** Animate page flip like Quran reader */
+    /** Animate page flip — realistic 3D book page turn */
     _animateFlip(direction) {
         this._isAnimating = true;
         const container = document.getElementById('textContainer');
         if (!container) { this._isAnimating = false; return; }
-        const exitClass = direction === 'left' ? 'page-exit-left' : 'page-exit-right';
 
+        // Add shadow overlay for depth
+        const shadow = document.createElement('div');
+        shadow.className = 'page-flip-shadow' + (direction === 'right' ? ' reverse' : '');
+        container.style.position = 'relative';
+        container.appendChild(shadow);
+
+        const exitClass = direction === 'left' ? 'page-exit-left' : 'page-exit-right';
         container.classList.add(exitClass);
+
         setTimeout(() => {
             container.classList.remove(exitClass);
+            shadow.remove();
             if (direction === 'left') this.currentPage++;
             else this.currentPage--;
             this._renderPage();
@@ -459,8 +517,8 @@ const TextViewer = {
             setTimeout(() => {
                 container.classList.remove(enterClass);
                 this._isAnimating = false;
-            }, 300);
-        }, 250);
+            }, 350);
+        }, 350);
     },
 
     next() {

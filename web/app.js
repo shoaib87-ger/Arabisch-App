@@ -335,9 +335,6 @@ function renderCategories() {
                 </div>
                 <div class="category-actions" onclick="event.stopPropagation()">
                     <button class="icon-btn" onclick="editCategory('${cat.id}')" aria-label="Bearbeiten" title="Bearbeiten">✏️</button>
-                    <button class="icon-btn" onclick="showExportDialog('${cat.id}')" aria-label="Exportieren" title="Exportieren">📤</button>
-                    <button class="icon-btn" onclick="triggerImport()" aria-label="Importieren" title="Import (JSON/ZIP)">📥</button>
-                    <button class="icon-btn" onclick="showMergeDialog('${cat.id}')" aria-label="Zusammenführen" title="In anderes Kapitel verschieben">⤵️</button>
                     <button class="icon-btn delete" onclick="deleteCategory('${cat.id}')" aria-label="Löschen" title="Löschen">🗑️</button>
                 </div>
             </div>
@@ -383,10 +380,19 @@ function updateCatDropdowns() {
     }
 }
 
-/** Show subcategories inside a group */
+/** Select group and show subcategories */
 function selectGroup(groupId) {
     AppState.currentGroup = groupId;
     AppState.learnScope = null; // Reset scope
+
+    // Auto-select: if no subcategories but has own cards, auto-scope to group
+    const subs = getSubcategories(groupId);
+    const ownCards = AppState.cards.filter(c => c.cat === groupId).length;
+    if (subs.length === 0 && ownCards > 0) {
+        setScopeGroup(groupId);
+        return; // setScopeGroup already calls renderSubcategories
+    }
+
     renderSubcategories(groupId);
 }
 
@@ -902,9 +908,108 @@ function showLearnModes() {
 }
 
 function startFlashcards() {
+    const catId = AppState.currentCat || AppState.currentGroup;
+
+    // Always ask user which side should be front
+    document.getElementById('categoryGrid').innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center;">
+        <div class="quiz-result">
+            <div class="quiz-result-icon">🃏</div>
+            <h3>Kartenrichtung wählen</h3>
+            <div class="details" style="margin-top: 12px;">
+                Welche Sprache soll vorne stehen?
+            </div>
+            <button class="btn btn-primary mb-sm" style="margin-top: 16px;" onclick="_startWithDirection('de')">
+                🇩🇪 Deutsch vorne
+            </button>
+            <button class="btn btn-primary mb-sm" onclick="_startWithDirection('ar')">
+                🇸🇦 Arabisch vorne
+            </button>
+            <button class="btn btn-secondary mb-sm" onclick="_startWithDirection('both')">
+                🔀 Gemischt
+            </button>
+        </div>
+      </div>
+    `;
+}
+
+function _startWithDirection(dir) {
+    let filtered;
+    if (dir === 'de') {
+        filtered = AppState.currentCards.filter(c => c.frontLang === 'de');
+    } else if (dir === 'ar') {
+        filtered = AppState.currentCards.filter(c => c.frontLang === 'ar');
+    } else {
+        filtered = AppState.currentCards;
+    }
+    if (filtered.length === 0) {
+        showToast('📭 Keine Karten in dieser Richtung', 'info');
+        return;
+    }
+    AppState.currentCards = filtered;
+    _beginFlashcards(filtered);
+}
+
+function _beginFlashcards(cards) {
+    const catId = AppState.currentCat || AppState.currentGroup;
+    const savedIdx = _getResumeIndex(catId);
+    if (savedIdx > 0 && savedIdx < cards.length) {
+        document.getElementById('categoryGrid').innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center;">
+            <div class="quiz-result">
+                <div class="quiz-result-icon">📖</div>
+                <h3>Fortsetzen?</h3>
+                <div class="details" style="margin-top: 12px;">
+                    Du warst bei Karte ${savedIdx + 1} von ${cards.length}
+                </div>
+                <button class="btn btn-primary mb-sm" style="margin-top: 16px;" onclick="_resumeFlashcards(${savedIdx})">
+                    ▶️ Fortsetzen (ab Karte ${savedIdx + 1})
+                </button>
+                <button class="btn btn-secondary mb-sm" onclick="_resumeFlashcards(0)">
+                    🔄 Neu starten
+                </button>
+            </div>
+          </div>
+        `;
+        return;
+    }
     AppState.currentIdx = 0;
     AppState.flipped = false;
     showCard();
+}
+
+function _resumeFlashcards(idx) {
+    AppState.currentIdx = idx;
+    AppState.flipped = false;
+    showCard();
+}
+
+/** Save resume position */
+function _saveResumeIndex(catId, idx) {
+    try {
+        const key = 'flashcard_resume';
+        const data = JSON.parse(localStorage.getItem(key) || '{}');
+        data[catId] = { idx, ts: Date.now() };
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) { /* ignore */ }
+}
+
+/** Get saved resume index */
+function _getResumeIndex(catId) {
+    try {
+        const data = JSON.parse(localStorage.getItem('flashcard_resume') || '{}');
+        if (data[catId]) return data[catId].idx;
+    } catch (e) { /* ignore */ }
+    return 0;
+}
+
+/** Clear resume position after completion */
+function _clearResumeIndex(catId) {
+    try {
+        const data = JSON.parse(localStorage.getItem('flashcard_resume') || '{}');
+        delete data[catId];
+        localStorage.setItem('flashcard_resume', JSON.stringify(data));
+    } catch (e) { /* ignore */ }
 }
 
 function startQuiz(direction) {
@@ -931,6 +1036,53 @@ function highlightIcon(containerId, selectedIcon) {
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
+}
+
+// ===== GEAR MENU =====
+function toggleGearMenu(e) {
+    e.stopPropagation();
+    const popup = document.getElementById('gearPopup');
+    popup.classList.toggle('active');
+}
+
+function closeGearMenu() {
+    const popup = document.getElementById('gearPopup');
+    if (popup) popup.classList.remove('active');
+}
+
+// Close gear menu on outside click or ESC
+document.addEventListener('click', (e) => {
+    const wrapper = document.getElementById('gearMenuWrapper');
+    if (wrapper && !wrapper.contains(e.target)) closeGearMenu();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeGearMenu();
+});
+
+/** Show export dialog — pick a chapter first */
+function showGlobalExportDialog() {
+    const groups = getGroups();
+    if (groups.length === 0) { showToast('📭 Keine Kapitel vorhanden', 'info'); return; }
+    if (groups.length === 1) { showExportDialog(groups[0].id); return; }
+    // Build a quick-pick list
+    const options = groups.map(g => `${g.icon} ${g.name}`).join('\n');
+    const pick = prompt('Welches Kapitel exportieren?\n\n' + options);
+    if (!pick) return;
+    const found = groups.find(g => pick.includes(g.name));
+    if (found) showExportDialog(found.id);
+    else showToast('⚠️ Kapitel nicht gefunden', 'warning');
+}
+
+/** Show merge dialog — pick a chapter first */
+function showGlobalMergeDialog() {
+    const groups = getGroups();
+    if (groups.length < 2) { showToast('ℹ️ Min. 2 Kapitel zum Zusammenfassen nötig', 'info'); return; }
+    const options = groups.map(g => `${g.icon} ${g.name}`).join('\n');
+    const pick = prompt('Welches Kapitel verschieben?\n\n' + options);
+    if (!pick) return;
+    const found = groups.find(g => pick.includes(g.name));
+    if (found) showMergeDialog(found.id);
+    else showToast('⚠️ Kapitel nicht gefunden', 'warning');
 }
 
 // ===== UPLOAD & OCR =====
@@ -1280,13 +1432,13 @@ function showCard() {
                 <div class="flashcard-face flashcard-front">
                     <div class="flashcard-number">${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
                     <div class="flashcard-text ${card.frontLang === 'ar' ? 'ar' : ''}">${renderFormattedText(card.front)}</div>
-                    ${card.frontLang === 'ar' && card.note ? `<div class="flashcard-note">${escapeHtml(card.note)}</div>` : ''}
+                    ${card.frontLang === 'de' && card.note ? `<div class="flashcard-note">📝 ${escapeHtml(card.note)}</div>` : ''}
                 </div>
                 <div class="flashcard-face flashcard-back">
                     <div class="flashcard-number">${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
                     <div class="flashcard-text ${(card.backLang || (card.frontLang === 'de' ? 'ar' : 'de')) === 'ar' ? 'ar' : ''}">${renderFormattedText(card.back)}</div>
+                    ${card.frontLang === 'ar' && card.note ? `<div class="flashcard-note">📝 ${escapeHtml(card.note)}</div>` : ''}
                     ${card.ex ? `<div class="flashcard-example">💡 ${escapeHtml(card.ex)}</div>` : ''}
-                    ${(card.backLang || (card.frontLang === 'de' ? 'ar' : 'de')) === 'ar' && card.note ? `<div class="flashcard-note">${escapeHtml(card.note)}</div>` : ''}
                 </div>
             </div>
         </div>
@@ -1315,11 +1467,13 @@ function nextCard() {
             setTimeout(() => {
                 AppState.currentIdx++;
                 AppState.flipped = false;
+                _saveResumeIndex(AppState.currentCat || AppState.currentGroup, AppState.currentIdx);
                 showCard();
             }, 300);
         } else {
             AppState.currentIdx++;
             AppState.flipped = false;
+            _saveResumeIndex(AppState.currentCat || AppState.currentGroup, AppState.currentIdx);
             showCard();
         }
     } else {
@@ -1603,12 +1757,55 @@ function processCSVText(text, catId, input) {
 
         if (!de || !ar) { skipped++; return; }
 
-        // Extract note from arabic field: split on first " - " (strict: space-dash-space)
+        // Extract note from German text (de): split on first " - " or "-" or " \u2013 " (en-dash)
         let note = '';
-        const dashIdx = ar.indexOf(' - ');
+        const dashPatterns = [' - ', ' \u2013 '];
+        let dashIdx = -1;
+        let dashLen = 0;
+
+        // First try German field for hyphen-separated notes
+        for (const pat of dashPatterns) {
+            const idx = de.indexOf(pat);
+            if (idx > 0) { dashIdx = idx; dashLen = pat.length; break; }
+        }
+        // Fallback: bare "-" in German text
+        if (dashIdx < 0) {
+            const bareIdx = de.indexOf('-');
+            if (bareIdx > 0) {
+                const rightPart = de.substring(bareIdx + 1).trim();
+                if (rightPart && rightPart.length > 1) {
+                    dashIdx = bareIdx;
+                    dashLen = 1;
+                }
+            }
+        }
         if (dashIdx > 0) {
-            note = ar.substring(dashIdx + 3).trim();
-            ar = ar.substring(0, dashIdx).trim();
+            note = de.substring(dashIdx + dashLen).trim();
+            de = de.substring(0, dashIdx).trim();
+        }
+
+        // If no note from German, also try Arabic field (existing behavior)
+        if (!note) {
+            dashIdx = -1;
+            dashLen = 0;
+            for (const pat of dashPatterns) {
+                const idx = ar.indexOf(pat);
+                if (idx > 0) { dashIdx = idx; dashLen = pat.length; break; }
+            }
+            if (dashIdx < 0) {
+                const bareIdx = ar.indexOf('-');
+                if (bareIdx > 0) {
+                    const rightPart = ar.substring(bareIdx + 1).trim();
+                    if (rightPart && !isArabic(rightPart)) {
+                        dashIdx = bareIdx;
+                        dashLen = 1;
+                    }
+                }
+            }
+            if (dashIdx > 0) {
+                note = ar.substring(dashIdx + dashLen).trim();
+                ar = ar.substring(0, dashIdx).trim();
+            }
         }
 
         console.log(`📥 Preview: DE="${de}" | AR="${ar}"${note ? ` | NOTE="${note}"` : ''}`);
@@ -2335,6 +2532,9 @@ function showFlashcardCompletion() {
     });
     Storage.save();
 
+    // Clear resume position (completed)
+    _clearResumeIndex(AppState.currentCat || AppState.currentGroup);
+
     showConfetti();
 
     document.getElementById('categoryGrid').innerHTML = `
@@ -2788,11 +2988,11 @@ function buildCSV(cards) {
     });
 
     let csv = '\uFEFF'; // UTF-8 BOM
-    csv += 'arabic,german\n';
+    csv += 'arabic;german\n';
     pairMap.forEach(p => {
-        // Recombine note back into arabic field for round-trip compatibility
-        const arExport = p.note ? `${p.ar} - ${p.note}` : p.ar;
-        csv += `${arExport},${p.de}\n`;
+        // Recombine note back into German field for round-trip compatibility
+        const deExport = p.note ? `${p.de} - ${p.note}` : p.de;
+        csv += `${p.ar};${deExport}\n`;
     });
     return csv;
 }

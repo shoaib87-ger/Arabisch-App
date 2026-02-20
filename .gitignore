@@ -15,3 +15,6 @@ Thumbs.db
 
 # Build artifacts
 *.xcarchive
+
+# Large PDF files (hosted separately)
+web/assets/*.pdf
