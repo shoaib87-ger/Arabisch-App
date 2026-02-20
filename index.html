@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Lern-App</title>
+
+    <!-- PWA -->
+    <meta name="theme-color" content="#c8952e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Lern-App">
+    <meta name="description" content="Deutsch-Arabisch Lernkarten mit OCR & Quiz">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/icon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-180.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
+    <!-- Tesseract.js -->
+    <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <h1><img src="assets/doctor-icon.png" class="doctor-avatar" alt="Doctor"> Dr. Shoaibs Lern-App</h1>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <div class="tab active" data-tab="categories" onclick="switchTab('categories')"><span
+                    class="tab-icon">📖</span><span class="tab-label">Lernen</span></div>
+            <div class="tab" data-tab="upload" onclick="switchTab('upload')"><span class="tab-icon">📤</span><span
+                    class="tab-label">Upload</span></div>
+            <div class="tab" data-tab="islam" onclick="switchTab('islam')"><span class="tab-icon">☪️</span><span
+                    class="tab-label">Islam</span></div>
+        </div>
+
+        <!-- ===== LERNEN TAB ===== -->
+        <div id="categories" class="content active">
+            <div class="lernen-header-row">
+                <button class="btn btn-primary btn-small" onclick="openNewCatModal()">+ Neues Kapitel</button>
+                <div class="gear-menu-wrapper" id="gearMenuWrapper">
+                    <button class="icon-btn gear-btn" onclick="toggleGearMenu(event)" aria-label="Einstellungen">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3" />
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                    </button>
+                    <div class="gear-popup" id="gearPopup">
+                        <button class="gear-popup-item" onclick="triggerImport(); closeGearMenu();">
+                            <span>📥</span> Kapitel importieren
+                        </button>
+                        <button class="gear-popup-item" onclick="showGlobalExportDialog(); closeGearMenu();">
+                            <span>📤</span> Kapitel exportieren
+                        </button>
+                        <button class="gear-popup-item" onclick="showGlobalMergeDialog(); closeGearMenu();">
+                            <span>⤵️</span> Zusammenfassen
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="categoryGrid" class="category-grid"></div>
+        </div>
+
+        <!-- ===== UPLOAD TAB ===== -->
+        <div id="upload" class="content">
+            <div class="quick-category">
+                <p>Neues Kapitel benötigt?</p>
+                <button class="btn btn-secondary btn-small" onclick="openNewCatModal()">➕ Neues Kapitel</button>
+            </div>
+
+            <!-- CSV Import (most used) -->
+            <div class="word-form">
+                <h3>📥 CSV importieren</h3>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5;">
+                    Format: <code
+                        style="background: var(--bg-light); padding: 2px 6px; border-radius: 4px; font-size: 11px;">deutsch;arabisch</code>
+                    oder <code
+                        style="background: var(--bg-light); padding: 2px 6px; border-radius: 4px; font-size: 11px;">arabisch;deutsch</code><br>
+                    Vorschau zum Prüfen &amp; Bearbeiten vor dem Import
+                </p>
+                <label
+                    style="display: block; margin-bottom: 5px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">Kapitel:</label>
+                <select id="csvTargetCat"></select>
+                <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" onchange="importCSV(this)">
+                <button class="btn btn-primary" onclick="document.getElementById('csvFileInput').click()">📂 CSV-Datei
+                    importieren</button>
+            </div>
+
+            <!-- Photo/PDF Upload -->
+            <div class="upload-hero" id="uploadHero">
+                <h3>📷 Foto oder PDF hochladen</h3>
+                <p class="subtitle">Lade ein Foto mit Vokabeln hoch — wird automatisch erkannt!<br>✅ JPG, PNG, PDF
+                    (mehrere Seiten)</p>
+                <input type="file" id="fileInput" accept="image/jpeg,image/png,application/pdf" style="display:none"
+                    onchange="handleUpload(this)">
+                <div class="upload-buttons">
+                    <button class="btn btn-white" onclick="triggerFileUpload()">📸 Datei wählen</button>
+                    <button class="btn btn-accent" onclick="openCamera()">📷 Kamera</button>
+                </div>
+                <div id="progressContainer" class="progress-container">
+                    <div id="progressStatus" class="progress-status">🔄 Initialisiere...</div>
+                    <div class="progress-bar-bg">
+                        <div id="progressBar" class="progress-bar"></div>
+                    </div>
+                </div>
+                <div id="imagePreview" class="image-preview">
+                    <img id="previewImg" alt="Vorschau">
+                </div>
+            </div>
+
+            <!-- Manual Add -->
+            <div class="word-form">
+                <h3>✍️ Manuell hinzufügen</h3>
+                <input type="text" id="germanWord" class="form-input" placeholder="Deutsches Wort" autocomplete="off">
+                <input type="text" id="arabicWord" class="form-input arabic" placeholder="Arabisches Wort"
+                    autocomplete="off" dir="rtl">
+                <input type="text" id="exampleText" class="form-input" placeholder="Beispiel (optional)"
+                    autocomplete="off">
+                <button class="btn btn-primary" onclick="addWord()">➕ Hinzufügen</button>
+            </div>
+
+
+            <div id="pendingContainer" class="hidden">
+                <div class="pending-box">
+                    <h3>📋 Bereit (<span id="pendingCount">0</span>)</h3>
+                    <div id="pendingList"></div>
+                    <div class="direction-box">
+                        <h4 style="margin-bottom: 8px; font-size: 14px; color: var(--text-secondary);">Richtung:</h4>
+                        <label class="direction-option">
+                            <input type="radio" name="dir" value="de-ar" checked>
+                            <span>➡️ Deutsch → Arabisch (empfohlen)</span>
+                        </label>
+                        <label class="direction-option">
+                            <input type="radio" name="dir" value="ar-de">
+                            <span>⬅️ Arabisch → Deutsch</span>
+                        </label>
+                        <label class="direction-option">
+                            <input type="radio" name="dir" value="both">
+                            <span>🔄 Beides (2× so viele Karten)</span>
+                        </label>
+                    </div>
+                    <label
+                        style="display: block; margin-bottom: 5px; font-weight: 600; color: var(--text-secondary); font-size: 14px;">Kapitel:</label>
+                    <select id="targetCat"></select>
+                    <button class="btn btn-success mt-sm" onclick="createCards()">✅ Karten erstellen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ISLAM TAB ===== -->
+        <div id="islam" class="content">
+            <div id="islamArea">
+                <!-- Subcategories rendered by JS -->
+            </div>
+            <div id="prayerContent" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- ===== QURAN READER OVERLAY ===== -->
+    <div id="quranOverlay" class="quran-overlay">
+        <div class="quran-header">
+            <button class="quran-close-btn" onclick="QuranReader.close()">‹ Zurück</button>
+            <h2 class="quran-title">📖 القرآن الكريم</h2>
+            <div class="quran-header-right">
+                <button class="quran-toc-btn" onclick="QuranReader.openTOC()" title="Inhaltsverzeichnis">☰</button>
+                <button class="quran-goto-btn" onclick="quranGoToPage()">📄</button>
+            </div>
+        </div>
+        <div class="quran-loading" id="quranLoading" style="display:none;">📖 Laden...</div>
+        <div class="quran-canvas-container" id="quranCanvasContainer"></div>
+        <div class="quran-nav">
+            <button class="quran-nav-btn" id="quranPrevBtn" onclick="QuranReader.flipPrev()">
+                <span class="nav-arrow">‹</span>
+            </button>
+            <span class="quran-page-info" id="quranPageInfo">Seite 1 / ?</span>
+            <button class="quran-nav-btn" id="quranNextBtn" onclick="QuranReader.flipNext()">
+                <span class="nav-arrow">›</span>
+            </button>
+        </div>
+
+        <!-- TOC Bottom Sheet -->
+        <div id="quranTocSheet" class="toc-sheet">
+            <div class="toc-sheet-backdrop" onclick="QuranReader.closeTOC()"></div>
+            <div class="toc-sheet-panel">
+                <div class="toc-sheet-handle" onclick="QuranReader.closeTOC()"><span></span></div>
+                <h3 class="toc-sheet-title">📑 Suren</h3>
+                <div class="toc-search">
+                    <input type="text" id="tocSearchInput" class="toc-search-input"
+                        placeholder="🔍 Suche (Nr. oder Name)..." oninput="QuranReader.filterTOC()" autocomplete="off">
+                </div>
+                <div class="toc-list" id="tocList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== QIBLA FINDER OVERLAY ===== -->
+    <div id="qiblaOverlay" class="qibla-overlay">
+        <div class="qibla-header">
+            <button class="qibla-back-btn" onclick="QiblaFinder.close()">‹ Zurück</button>
+            <h2 class="qibla-title">🧭 Qibla Finder</h2>
+            <div style="width: 70px"></div>
+        </div>
+        <div class="qibla-content" id="qiblaContent"></div>
+    </div>
+
+    <!-- ===== PRAYER TIMES OVERLAY ===== -->
+    <div id="prayerOverlay" class="prayer-overlay">
+        <div class="prayer-screen-header">
+            <button class="prayer-screen-back" onclick="PrayerTimes.close()">‹ Zurück</button>
+            <h2 class="prayer-screen-title">🕌 Gebetszeiten</h2>
+            <div style="width: 70px"></div>
+        </div>
+        <div class="prayer-screen-content" id="prayerScreenContent"></div>
+    </div>
+
+    <!-- ===== MODALS ===== -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3>📝 Kapitel bearbeiten</h3>
+            <label>Name:</label>
+            <input type="text" id="editName" class="form-input" autocomplete="off">
+            <label style="margin-top: 8px;">Icon wählen:</label>
+            <div id="editIconPicker" class="icon-picker"></div>
+            <button class="btn btn-primary mb-sm" onclick="saveEdit()">✅ Speichern</button>
+            <button class="btn btn-secondary" onclick="closeModal('editModal')">Abbrechen</button>
+        </div>
+    </div>
+
+    <div id="newCatModal" class="modal">
+        <div class="modal-content">
+            <h3>➕ Neues Kapitel erstellen</h3>
+            <label>Name:</label>
+            <input type="text" id="newCatName" class="form-input" placeholder="z.B. Verben, Medizin, Alltag..."
+                autocomplete="off">
+            <label style="margin-top: 8px;">Icon wählen:</label>
+            <div id="newCatIconPicker" class="icon-picker"></div>
+            <button class="btn btn-primary mb-sm" onclick="saveNewCat()">✅ Erstellen</button>
+            <button class="btn btn-secondary" onclick="closeModal('newCatModal')">Abbrechen</button>
+        </div>
+    </div>
+
+    <!-- ===== EXPORT DIALOG ===== -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <h3>📥 Exportieren</h3>
+            <p id="exportModalInfo" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 12px;"></p>
+            <button class="btn btn-primary mb-sm" id="exportFullBtn" onclick="exportFullJSON()">
+                📦 Komplett-Export (Kapitel + Einheiten + Vokabeln)
+            </button>
+            <button class="btn btn-secondary mb-sm" id="exportCsvBtn" onclick="exportCSVOnly()">
+                📄 Nur Vokabeln (CSV)
+            </button>
+            <button class="btn btn-secondary" onclick="closeModal('exportModal')">Abbrechen</button>
+        </div>
+    </div>
+
+    <!-- Hidden file input for JSON/ZIP import -->
+    <input type="file" id="importFileInput" accept=".json,.zip" style="display:none" onchange="handleImportFile(this)">
+
+    <!-- ===== IMPORT TARGET MODAL ===== -->
+    <div id="importTargetModal" class="modal">
+        <div class="modal-content">
+            <h3>📥 Import — Ziel wählen</h3>
+            <p id="importModalInfo" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;"></p>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer;">
+                    <input type="radio" name="importMode" id="importModeNew" value="new" checked
+                        onchange="toggleImportMode()">
+                    <span>📦 Als neues Kapitel erstellen</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="radio" name="importMode" id="importModeExisting" value="existing"
+                        onchange="toggleImportMode()">
+                    <span>📂 In bestehendes Kapitel einfügen</span>
+                </label>
+            </div>
+
+            <div id="importNewChapterSection" style="margin-bottom: 16px;">
+                <label for="importChapterName"
+                    style="font-size:13px; color:var(--text-secondary); display:block; margin-bottom:4px;">Kapitelname:</label>
+                <input type="text" id="importChapterName" class="edit-input" placeholder="Kapitelname"
+                    style="width:100%;">
+            </div>
+
+            <div id="importExistingSection" style="display:none; margin-bottom: 16px;">
+                <label for="importTargetChapter"
+                    style="font-size:13px; color:var(--text-secondary); display:block; margin-bottom:4px;">Zielkapitel:</label>
+                <select id="importTargetChapter" class="edit-input" style="width:100%; padding:8px;"></select>
+            </div>
+
+            <button class="btn btn-primary mb-sm" onclick="doImport()">✅ Importieren</button>
+            <button class="btn btn-secondary" onclick="closeModal('importTargetModal')">Abbrechen</button>
+        </div>
+    </div>
+
+    <!-- ===== MERGE CHAPTER MODAL ===== -->
+    <div id="mergeChapterModal" class="modal">
+        <div class="modal-content">
+            <h3>⤵️ Kapitel zusammenführen</h3>
+            <p id="mergeSourceInfo" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;"></p>
+            <div style="margin-bottom: 16px;">
+                <label for="mergeTargetChapter"
+                    style="font-size:13px; color:var(--text-secondary); display:block; margin-bottom:4px;">Zielkapitel
+                    (alle Einheiten werden hierhin verschoben):</label>
+                <select id="mergeTargetChapter" class="edit-input" style="width:100%; padding:8px;"></select>
+            </div>
+            <button class="btn btn-primary mb-sm" onclick="doMergeChapters()"
+                style="background: linear-gradient(135deg, #e74c3c, #c0392b);">🔀 Zusammenführen</button>
+            <button class="btn btn-secondary" onclick="closeModal('mergeChapterModal')">Abbrechen</button>
+        </div>
+    </div>
+    <!-- ===== EBOOK READER OVERLAY ===== -->
+    <div id="ebookOverlay" class="ebook-overlay">
+        <div class="ebook-header" id="ebookHeader">
+            <button class="ebook-back-btn" onclick="EbookUI.close()">‹ Zurück</button>
+            <span class="ebook-title">📚 Meine Bücher</span>
+            <div style="width:40px;"></div>
+        </div>
+        <div class="ebook-content" id="ebookContent"></div>
+        <div class="ebook-footer hidden" id="ebookFooter"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="preprocessing.js"></script>
+    <script src="ocr.js"></script>
+    <script src="pdf-handler.js"></script>
+    <script src="stats.js"></script>
+    <script src="quiz.js"></script>
+    <!-- quran-data.js removed — PDF loaded via fetch from assets/quran_ar_de_v2.pdf -->
+    <script src="quran-reader.js"></script>
+    <script src="qibla-finder.js"></script>
+    <script src="prayer-times.js"></script>
+    <!-- Ebook Reader libs (local, pinned) -->
+    <script src="lib/jszip.min.js"></script>
+    <script src="lib/epub.min.js"></script>
+    <script src="lib/purify.min.js"></script>
+    <!-- Ebook Reader modules -->
+    <script src="ebook-storage.js"></script>
+    <script src="ebook-detect.js"></script>
+    <script src="ebook-readers.js"></script>
+    <script src="ebook-ui.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
