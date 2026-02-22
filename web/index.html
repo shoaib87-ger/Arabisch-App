@@ -121,6 +121,17 @@
                     <button class="btn btn-white" onclick="triggerFileUpload()">📸 Datei wählen</button>
                     <button class="btn btn-accent" onclick="openCamera()">📷 Kamera</button>
                 </div>
+
+                <!-- Native OCR Scan (iOS only, hidden on web) -->
+                <div id="nativeOcrSection"
+                    style="display:none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1);">
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">📱 Oder nutze Apple
+                        Vision OCR für bessere Erkennung:</p>
+                    <div class="upload-buttons">
+                        <button class="btn btn-white" onclick="startNativeScan('photos')">🖼 Aus Fotos scannen</button>
+                        <button class="btn btn-accent" onclick="startNativeScan('camera')">📷 Live scannen</button>
+                    </div>
+                </div>
                 <div id="progressContainer" class="progress-container">
                     <div id="progressStatus" class="progress-status">🔄 Initialisiere...</div>
                     <div class="progress-bar-bg">
@@ -369,6 +380,9 @@
     <script src="srs-db.js"></script>
     <script src="srs-adapter.js"></script>
     <script src="srs-ui.js"></script>
+    <!-- Native iOS plugins (OCR + EPUB) -->
+    <script src="text-scan.js"></script>
+    <script src="epub-reader.js"></script>
     <script src="app.js"></script>
 </body>
 

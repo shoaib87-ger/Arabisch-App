@@ -1,22 +1,26 @@
 import Capacitor
 import Vision
 import UIKit
+import PhotosUI
 
 @objc(VisionOCRPlugin)
-public class VisionOCRPlugin: CAPPlugin, CAPBridgedPlugin {
+public class VisionOCRPlugin: CAPPlugin, CAPBridgedPlugin, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     public let identifier = "VisionOCRPlugin"
     public let jsName = "VisionOCR"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "recognizeText", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "recognizeText", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "scanText", returnType: CAPPluginReturnPromise)
     ]
 
+    private var currentCall: CAPPluginCall?
+
+    // MARK: - recognizeText (existing: base64 image → OCR)
     @objc func recognizeText(_ call: CAPPluginCall) {
         guard let base64String = call.getString("imageBase64") else {
             call.reject("Missing imageBase64 parameter")
             return
         }
 
-        // Strip data URI prefix if present (e.g., "data:image/png;base64,")
         let cleanBase64 = base64String.contains(",")
             ? String(base64String.split(separator: ",").last ?? "")
             : base64String
@@ -28,10 +32,61 @@ public class VisionOCRPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
-        // Languages to recognize: Arabic + German + English
         let languages = call.getArray("languages", String.self) ?? ["ar", "de", "en"]
+        performOCR(on: cgImage, languages: languages, call: call)
+    }
 
-        // Run OCR on background thread
+    // MARK: - scanText (NEW: open photo picker → OCR → return text)
+    @objc func scanText(_ call: CAPPluginCall) {
+        self.currentCall = call
+        let source = call.getString("source") ?? "photos" // "photos" or "camera"
+
+        DispatchQueue.main.async {
+            guard let viewController = self.bridge?.viewController else {
+                call.reject("No view controller available")
+                return
+            }
+
+            let picker = UIImagePickerController()
+            picker.delegate = self
+            picker.allowsEditing = false
+
+            if source == "camera" && UIImagePickerController.isSourceTypeAvailable(.camera) {
+                picker.sourceType = .camera
+            } else {
+                picker.sourceType = .photoLibrary
+            }
+
+            viewController.present(picker, animated: true)
+        }
+    }
+
+    // MARK: - UIImagePickerControllerDelegate
+    public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+        picker.dismiss(animated: true)
+
+        guard let call = self.currentCall else { return }
+
+        guard let image = info[.originalImage] as? UIImage,
+              let cgImage = image.cgImage else {
+            call.reject("Could not get image from picker")
+            self.currentCall = nil
+            return
+        }
+
+        let languages = call.getArray("languages", String.self) ?? ["ar", "de", "en"]
+        performOCR(on: cgImage, languages: languages, call: call)
+        self.currentCall = nil
+    }
+
+    public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.dismiss(animated: true)
+        currentCall?.reject("User cancelled")
+        currentCall = nil
+    }
+
+    // MARK: - Shared OCR logic
+    private func performOCR(on cgImage: CGImage, languages: [String], call: CAPPluginCall) {
         DispatchQueue.global(qos: .userInitiated).async {
             let request = VNRecognizeTextRequest { request, error in
                 if let error = error {
@@ -73,7 +128,6 @@ public class VisionOCRPlugin: CAPPlugin, CAPBridgedPlugin {
                 ])
             }
 
-            // Configure the request
             request.recognitionLevel = .accurate
             request.usesLanguageCorrection = true
 
@@ -81,7 +135,6 @@ public class VisionOCRPlugin: CAPPlugin, CAPBridgedPlugin {
                 request.automaticallyDetectsLanguage = true
             }
 
-            // Set recognition languages
             request.recognitionLanguages = languages
 
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])

@@ -3141,8 +3141,67 @@ function initApp() {
             .catch(err => console.warn('SW Fehler:', err));
     }
 
+    // Detect native plugins and show native-only UI
+    _initNativePlugins();
+
     console.log('✅ App gestartet');
     console.log(`📊 ${AppState.categories.length} Kapitel, ${AppState.cards.length} Karten`);
+}
+
+/** Detect Capacitor native plugins and enable plugin-specific UI */
+function _initNativePlugins() {
+    // OCR Plugin: show native scan section if available
+    if (typeof TextScan !== 'undefined' && TextScan.isAvailable()) {
+        const ocrSection = document.getElementById('nativeOcrSection');
+        if (ocrSection) ocrSection.style.display = 'block';
+        console.log('📷 Native OCR plugin detected (VisionOCR)');
+    }
+
+    // EPUB Plugin: log availability
+    if (typeof EpubReaderBridge !== 'undefined' && EpubReaderBridge.isAvailable()) {
+        console.log('📖 Native EPUB reader plugin detected');
+    }
+}
+
+/**
+ * Start native OCR scan via Apple Vision.
+ * @param {'photos'|'camera'} source
+ */
+async function startNativeScan(source = 'photos') {
+    try {
+        showToast('📷 Scanne...', 'info');
+        const result = await TextScan.scan(source);
+
+        if (!result.text) {
+            showToast('⚠️ Kein Text erkannt', 'warning');
+            return;
+        }
+
+        // Show the result UI (from text-scan.js)
+        TextScan.showScanResult(result);
+        showToast(`✅ ${result.blockCount} Textblöcke erkannt!`, 'success');
+    } catch (err) {
+        if (err.message && err.message.includes('cancel')) {
+            // User cancelled — no error
+            return;
+        }
+        console.error('OCR scan error:', err);
+        showToast('❌ Scan fehlgeschlagen: ' + (err.message || err), 'error');
+    }
+}
+
+/**
+ * Open native EPUB reader via file picker.
+ */
+async function openNativeEpubReader() {
+    try {
+        const result = await EpubReaderBridge.pickAndOpen();
+        console.log('EPUB reader closed:', result);
+    } catch (err) {
+        if (err.message && err.message.includes('cancel')) return;
+        console.error('EPUB reader error:', err);
+        showToast('❌ EPUB konnte nicht geöffnet werden: ' + (err.message || err), 'error');
+    }
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
