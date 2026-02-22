@@ -257,7 +257,7 @@ class ZipArchiveReader {
         // Search backwards for 0x06054b50
         let sig: [UInt8] = [0x50, 0x4b, 0x05, 0x06]
         let maxSearch = min(data.count, 65535 + 22)
-        for i in stride(from: data.count - 22, through: Swift.max(0, data.count - maxSearch), by: -1) {
+        for i in stride(from: data.count - 22, through: max(0, data.count - maxSearch), by: -1) {
             if data[i] == sig[0] && data[i+1] == sig[1] && data[i+2] == sig[2] && data[i+3] == sig[3] {
                 return i
             }
