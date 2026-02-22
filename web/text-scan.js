@@ -86,6 +86,9 @@ const TextScan = (() => {
                 <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">
                     ${result.blockCount} Textblöcke erkannt. Wähle Texte aus und erstelle Karten.
                 </p>
+                <p style="color:var(--text-secondary);font-size:11px;margin-bottom:12px;font-style:italic;">
+                    💡 For best accuracy and privacy, we recommend importing cards via CSV. OCR is optional.
+                </p>
                 <div class="ocr-blocks-list" style="max-height:300px;overflow-y:auto;margin-bottom:12px;">
                     ${blocksHtml || '<p style="color:#888;">Kein Text erkannt</p>'}
                 </div>

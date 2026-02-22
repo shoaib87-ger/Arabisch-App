@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Lern-App</string>
+        <string>FushaCards</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -49,17 +49,23 @@
 	<true/>
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleLightContent</string>
-	<!-- Camera: OCR text recognition from photos -->
+	<!-- Location: Qibla + Prayer Times (not stored, not sent to servers) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Wir nutzen deinen Standort, um Qibla-Richtung und Gebetszeiten zu berechnen. Der Standort wird nicht gespeichert.</string>
+	<!-- Camera: OCR text scanning -->
 	<key>NSCameraUsageDescription</key>
-	<string>Die App nutzt die Kamera für OCR-Texterkennung aus Lehrbuchseiten</string>
+	<string>Die Kamera wird genutzt, um Text zu scannen und daraus Lernkarten zu erstellen. Wir empfehlen den Import per CSV für beste Ergebnisse.</string>
 	<!-- Photo Library: Import images for OCR -->
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Die App benötigt Zugriff auf Fotos für den Import von Lehrbuchseiten</string>
-	<!-- Location: Qibla direction finder -->
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Die App benötigt den Standort zur Berechnung der Qibla-Richtung</string>
+	<string>Fotos werden nur ausgewählt, um Text zu erkennen und Lernkarten zu erstellen. Wir empfehlen den Import per CSV für beste Ergebnisse.</string>
 	<!-- Motion/Compass: Qibla compass needle -->
 	<key>NSMotionUsageDescription</key>
 	<string>Die App nutzt den Kompass für die Qibla-Richtungsanzeige</string>
+	<!-- App Transport Security: HTTPS only, no arbitrary loads -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+	</dict>
 </dict>
 </plist>
