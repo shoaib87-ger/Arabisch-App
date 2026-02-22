@@ -291,16 +291,34 @@ const EbookUI = {
             <button class="ebook-nav-btn" onclick="EbookUI.prev()">‹</button>
             <div class="ebook-footer-center">
                 <span class="ebook-progress ebook-progress-clickable" id="ebookProgress" onclick="EbookUI._toggleGoTo()">—</span>
-                <div class="ebook-goto" id="ebookGoto" style="display:none;">
-                    <input type="number" id="ebookGotoInput" class="ebook-goto-input" min="1" placeholder="Seite #"
-                           inputmode="numeric" pattern="[0-9]*"
-                           onkeydown="if(event.key==='Enter'){EbookUI.goToPage();event.preventDefault();}">
-                    <button class="ebook-goto-btn" onclick="EbookUI.goToPage()">→</button>
-                    <span class="ebook-goto-loader" id="ebookGoToLoader" style="display:none;">⏳</span>
-                </div>
             </div>
             <button class="ebook-nav-btn" onclick="EbookUI.next()">›</button>
         `;
+
+        // GoTo popup (centered overlay, not inline)
+        let gotoPopup = document.getElementById('ebookGotoPopup');
+        if (!gotoPopup) {
+            gotoPopup = document.createElement('div');
+            gotoPopup.id = 'ebookGotoPopup';
+            gotoPopup.className = 'ebook-goto-popup';
+            gotoPopup.innerHTML = `
+                <div class="ebook-goto-popup-backdrop" onclick="EbookUI._toggleGoTo()"></div>
+                <div class="ebook-goto-popup-box">
+                    <div class="ebook-goto-popup-header">
+                        <span>📄 Seite wählen</span>
+                        <button class="ebook-goto-popup-close" onclick="EbookUI._toggleGoTo()">✕</button>
+                    </div>
+                    <div class="ebook-goto-popup-body">
+                        <input type="number" id="ebookGotoInput" class="ebook-goto-input" min="1" placeholder="Seite #"
+                               inputmode="numeric" pattern="[0-9]*"
+                               onkeydown="if(event.key==='Enter'){EbookUI.goToPage();event.preventDefault();}">
+                        <button class="ebook-goto-btn" onclick="EbookUI.goToPage()">Gehe zu Seite</button>
+                        <span class="ebook-goto-loader" id="ebookGoToLoader" style="display:none;">⏳</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('ebookOverlay').appendChild(gotoPopup);
+        }
         footer.classList.remove('hidden');
 
         // Settings panel
@@ -438,15 +456,17 @@ const EbookUI = {
 
     /** Toggle GoTo input visibility (called on progress text click) */
     _toggleGoTo() {
-        const gotoEl = document.getElementById('ebookGoto');
-        if (!gotoEl) return;
-        const isVisible = gotoEl.style.display !== 'none';
-        gotoEl.style.display = isVisible ? 'none' : 'flex';
-        if (!isVisible) {
+        const popup = document.getElementById('ebookGotoPopup');
+        if (!popup) return;
+        const isVisible = popup.classList.contains('active');
+        if (isVisible) {
+            popup.classList.remove('active');
+        } else {
+            popup.classList.add('active');
             const input = document.getElementById('ebookGotoInput');
             if (input) {
                 input.value = '';
-                setTimeout(() => input.focus(), 100);
+                setTimeout(() => input.focus(), 150);
             }
         }
     },
