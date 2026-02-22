@@ -914,7 +914,7 @@ function startFlashcards() {
     document.getElementById('categoryGrid').innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center;">
         <div class="quiz-result">
-            <div class="quiz-result-icon">🃏</div>
+
             <h3>Kartenrichtung wählen</h3>
             <div class="details" style="margin-top: 12px;">
                 Welche Sprache soll vorne stehen?
@@ -1087,12 +1087,7 @@ function showGlobalMergeDialog() {
 
 // ===== UPLOAD & OCR =====
 function openCamera() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/jpeg,image/png';
-    input.capture = 'environment';
-    input.onchange = () => handleUpload(input);
-    input.click();
+    document.getElementById('cameraInput').click();
 }
 
 function triggerFileUpload() {
@@ -1120,12 +1115,15 @@ async function handleUpload(input) {
     AppState.isProcessing = true;
 
     try {
-        if (file.type === 'application/pdf') {
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|heic|heif|webp)$/i.test(file.name);
+
+        if (isPdf) {
             await processPdf(file);
-        } else if (file.type.startsWith('image/')) {
+        } else if (isImage) {
             await processImage(file);
         } else {
-            showToast('❌ Format nicht unterstützt (JPG, PNG, PDF)', 'error');
+            showToast('❌ Format nicht unterstützt (JPG, PNG, HEIC, PDF)', 'error');
         }
     } catch (error) {
         console.error('❌ Upload Error:', error);
@@ -1249,11 +1247,13 @@ function editWord(i) {
                 <span class="fmt-hint">Text markieren → B/I drücken</span>
             </div>
             <input type="text" id="editDe${i}" value="${escapeAttr(w.de)}" class="form-input" placeholder="Deutsch" style="margin-bottom:4px;">
+            <input type="text" id="editNoteDe${i}" value="${escapeAttr(w.noteDe)}" class="form-input" placeholder="Notiz (Deutsch)" style="margin-bottom:4px; font-size:12px;">
             <div class="fmt-toolbar">
                 <button class="fmt-btn" onclick="wrapSelection('editAr${i}','**')" title="Fett">B</button>
                 <button class="fmt-btn fmt-italic" onclick="wrapSelection('editAr${i}','*')" title="Kursiv">I</button>
             </div>
             <input type="text" id="editAr${i}" value="${escapeAttr(w.ar)}" class="form-input arabic" placeholder="Arabisch" dir="rtl" style="margin-bottom:4px;">
+            <input type="text" id="editNoteAr${i}" value="${escapeAttr(w.noteAr)}" class="form-input arabic" placeholder="Notiz (Arabisch)" dir="rtl" style="margin-bottom:4px; font-size:12px;">
             <div style="display:flex;gap:6px;">
                 <button class="btn btn-primary btn-small" onclick="saveEditWord(${i})">✅ OK</button>
                 <button class="btn btn-secondary btn-small" onclick="renderPending()">❌</button>
@@ -1298,12 +1298,16 @@ function escapeAttr(str) {
 function saveEditWord(i) {
     const de = document.getElementById(`editDe${i}`).value.trim();
     const ar = document.getElementById(`editAr${i}`).value.trim();
+    const noteDe = document.getElementById(`editNoteDe${i}`).value.trim();
+    const noteAr = document.getElementById(`editNoteAr${i}`).value.trim();
     if (!de || !ar) {
         showToast('⚠️ Beide Felder ausfüllen!', 'warning');
         return;
     }
     AppState.pending[i].de = de;
     AppState.pending[i].ar = ar;
+    AppState.pending[i].noteDe = noteDe;
+    AppState.pending[i].noteAr = noteAr;
     Storage.savePending();
     renderPending();
     showToast('✅ Geändert!', 'success');
@@ -1332,6 +1336,8 @@ function renderPending() {
         <div class="pending-word" id="pending-row-${i}">
             <div class="pending-word-text">
                 <span>${renderFormattedText(w.de)}</span> → <span class="ar">${renderFormattedText(w.ar)}</span>
+                ${w.noteDe ? `<div class="flashcard-note" style="margin-top: 4px;">DE: ${escapeHtml(w.noteDe)}</div>` : ''}
+                ${w.noteAr ? `<div class="flashcard-note" style="margin-top: 4px;">AR: ${escapeHtml(w.noteAr)}</div>` : ''}
                 ${w.ex ? `<div class="example">💡 ${escapeHtml(w.ex)}</div>` : ''}
             </div>
             <div class="pending-word-actions">
@@ -1372,7 +1378,7 @@ function createCards() {
             AppState.cards.push({
                 front: w.de, back: w.ar,
                 frontLang: 'de', backLang: 'ar',
-                ex: w.ex, note: w.note || '', cat: catId,
+                ex: w.ex, noteDe: w.noteDe || '', noteAr: w.noteAr || '', note: w.note || '', cat: catId,
                 score: 0, correctCount: 0, wrongCount: 0, lastSeen: null
             });
             created++;
@@ -1381,7 +1387,7 @@ function createCards() {
             AppState.cards.push({
                 front: w.ar, back: w.de,
                 frontLang: 'ar', backLang: 'de',
-                ex: w.ex, note: w.note || '', cat: catId,
+                ex: w.ex, noteDe: w.noteDe || '', noteAr: w.noteAr || '', note: w.note || '', cat: catId,
                 score: 0, correctCount: 0, wrongCount: 0, lastSeen: null
             });
             created++;
@@ -1432,12 +1438,14 @@ function showCard() {
                 <div class="flashcard-face flashcard-front">
                     <div class="flashcard-number">${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
                     <div class="flashcard-text ${card.frontLang === 'ar' ? 'ar' : ''}">${renderFormattedText(card.front)}</div>
-                    ${card.frontLang === 'de' && card.note ? `<div class="flashcard-note">📝 ${escapeHtml(card.note)}</div>` : ''}
+                    ${card.frontLang === 'de' && card.noteDe ? `<div class="flashcard-note">${escapeHtml(card.noteDe)}</div>` : ''}
+                    ${card.frontLang === 'ar' && card.noteAr ? `<div class="flashcard-note">${escapeHtml(card.noteAr)}</div>` : ''}
                 </div>
                 <div class="flashcard-face flashcard-back">
                     <div class="flashcard-number">${AppState.currentIdx + 1}/${AppState.currentCards.length}</div>
                     <div class="flashcard-text ${(card.backLang || (card.frontLang === 'de' ? 'ar' : 'de')) === 'ar' ? 'ar' : ''}">${renderFormattedText(card.back)}</div>
-                    ${card.frontLang === 'ar' && card.note ? `<div class="flashcard-note">📝 ${escapeHtml(card.note)}</div>` : ''}
+                    ${(card.backLang || (card.frontLang === 'de' ? 'ar' : 'de')) === 'de' && card.noteDe ? `<div class="flashcard-note">${escapeHtml(card.noteDe)}</div>` : ''}
+                    ${(card.backLang || (card.frontLang === 'de' ? 'ar' : 'de')) === 'ar' && card.noteAr ? `<div class="flashcard-note">${escapeHtml(card.noteAr)}</div>` : ''}
                     ${card.ex ? `<div class="flashcard-example">💡 ${escapeHtml(card.ex)}</div>` : ''}
                 </div>
             </div>
@@ -1757,59 +1765,58 @@ function processCSVText(text, catId, input) {
 
         if (!de || !ar) { skipped++; return; }
 
-        // Extract note from German text (de): split on first " - " or "-" or " \u2013 " (en-dash)
-        let note = '';
+        // Extract notes for German AND Arabic distinctly
+        let noteDe = '';
+        let noteAr = '';
         const dashPatterns = [' - ', ' \u2013 '];
+
+        // --- 1. German Note ---
         let dashIdx = -1;
         let dashLen = 0;
-
-        // First try German field for hyphen-separated notes
         for (const pat of dashPatterns) {
             const idx = de.indexOf(pat);
             if (idx > 0) { dashIdx = idx; dashLen = pat.length; break; }
         }
-        // Fallback: bare "-" in German text
         if (dashIdx < 0) {
             const bareIdx = de.indexOf('-');
             if (bareIdx > 0) {
                 const rightPart = de.substring(bareIdx + 1).trim();
-                if (rightPart && rightPart.length > 1) {
+                // Avoid splitting words like "Magen-Darm" if there's no space and the right part is short
+                if (rightPart && rightPart.length > 2) {
                     dashIdx = bareIdx;
                     dashLen = 1;
                 }
             }
         }
         if (dashIdx > 0) {
-            note = de.substring(dashIdx + dashLen).trim();
+            noteDe = de.substring(dashIdx + dashLen).trim();
             de = de.substring(0, dashIdx).trim();
         }
 
-        // If no note from German, also try Arabic field (existing behavior)
-        if (!note) {
-            dashIdx = -1;
-            dashLen = 0;
-            for (const pat of dashPatterns) {
-                const idx = ar.indexOf(pat);
-                if (idx > 0) { dashIdx = idx; dashLen = pat.length; break; }
-            }
-            if (dashIdx < 0) {
-                const bareIdx = ar.indexOf('-');
-                if (bareIdx > 0) {
-                    const rightPart = ar.substring(bareIdx + 1).trim();
-                    if (rightPart && !isArabic(rightPart)) {
-                        dashIdx = bareIdx;
-                        dashLen = 1;
-                    }
+        // --- 2. Arabic Note ---
+        dashIdx = -1;
+        dashLen = 0;
+        for (const pat of dashPatterns) {
+            const idx = ar.indexOf(pat);
+            if (idx > 0) { dashIdx = idx; dashLen = pat.length; break; }
+        }
+        if (dashIdx < 0) {
+            const bareIdx = ar.indexOf('-');
+            if (bareIdx > 0) {
+                const rightPart = ar.substring(bareIdx + 1).trim();
+                if (rightPart) {
+                    dashIdx = bareIdx;
+                    dashLen = 1;
                 }
             }
-            if (dashIdx > 0) {
-                note = ar.substring(dashIdx + dashLen).trim();
-                ar = ar.substring(0, dashIdx).trim();
-            }
+        }
+        if (dashIdx > 0) {
+            noteAr = ar.substring(dashIdx + dashLen).trim();
+            ar = ar.substring(0, dashIdx).trim();
         }
 
-        console.log(`📥 Preview: DE="${de}" | AR="${ar}"${note ? ` | NOTE="${note}"` : ''}`);
-        AppState.pending.push({ de, ar, ex, note });
+        console.log(`📥 Preview: DE="${de}" | AR="${ar}"${noteDe ? ` | NOTEDE="${noteDe}"` : ''}${noteAr ? ` | NOTEAR="${noteAr}"` : ''}`);
+        AppState.pending.push({ de, ar, ex, noteDe, noteAr });
         imported++;
     });
 
@@ -2617,6 +2624,8 @@ function exportFullJSON() {
                     front: card.front,
                     back: card.back,
                     frontLang: card.frontLang || 'de',
+                    noteDe: card.noteDe || '',
+                    noteAr: card.noteAr || '',
                     note: card.note || ''
                 });
             });
@@ -2629,6 +2638,8 @@ function exportFullJSON() {
                 front: card.front,
                 back: card.back,
                 frontLang: card.frontLang || 'de',
+                noteDe: card.noteDe || '',
+                noteAr: card.noteAr || '',
                 note: card.note || ''
             });
         });
@@ -2641,6 +2652,8 @@ function exportFullJSON() {
                 front: card.front,
                 back: card.back,
                 frontLang: card.frontLang || 'de',
+                noteDe: card.noteDe || '',
+                noteAr: card.noteAr || '',
                 note: card.note || ''
             });
         });

@@ -113,7 +113,9 @@
                 <h3>📷 Foto oder PDF hochladen</h3>
                 <p class="subtitle">Lade ein Foto mit Vokabeln hoch — wird automatisch erkannt!<br>✅ JPG, PNG, PDF
                     (mehrere Seiten)</p>
-                <input type="file" id="fileInput" accept="image/jpeg,image/png,application/pdf" style="display:none"
+                <input type="file" id="fileInput" accept="image/*,application/pdf" style="display:none"
+                    onchange="handleUpload(this)">
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none"
                     onchange="handleUpload(this)">
                 <div class="upload-buttons">
                     <button class="btn btn-white" onclick="triggerFileUpload()">📸 Datei wählen</button>
