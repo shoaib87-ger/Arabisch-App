@@ -193,7 +193,7 @@ class ZipArchiveReader {
             
             let compressionMethod = readUInt16(at: offset + 10)
             let compressedSize = Int(readUInt32(at: offset + 20))
-            let uncompressedSize = Int(readUInt32(at: offset + 24))
+            let _ = readUInt32(at: offset + 24) // uncompressedSize (unused)
             let nameLength = Int(readUInt16(at: offset + 28))
             let extraLength = Int(readUInt16(at: offset + 30))
             let commentLength = Int(readUInt16(at: offset + 32))
