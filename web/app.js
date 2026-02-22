@@ -3023,14 +3023,7 @@ async function exportZIP(catId, cat, subs) {
 
     try {
         const blob = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = sanitizeFilename(cat.name) + '.zip';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        downloadFile(blob, sanitizeFilename(cat.name) + '.zip', 'application/zip');
         showToast(`📤 ${totalPairs} Karten als ZIP exportiert!`, 'success');
     } catch (e) {
         console.error('ZIP export error:', e);
@@ -3063,30 +3056,57 @@ function sanitizeFilename(name) {
 }
 
 function downloadFile(content, filename, mimeType) {
-    const blob = new Blob([content], { type: mimeType });
+    // content can be a string or a Blob
+    const blob = (content instanceof Blob) ? content : new Blob([content], { type: mimeType });
 
-    // On iOS / mobile: use Web Share API so user can choose save location
-    if (navigator.share && navigator.canShare) {
-        const file = new File([blob], filename, { type: mimeType });
-        if (navigator.canShare({ files: [file] })) {
-            navigator.share({
-                files: [file],
-                title: filename
-            }).catch(err => {
-                // If user cancelled share or it's not supported, fallback
-                if (err.name !== 'AbortError') {
-                    _downloadFallback(blob, filename);
-                }
-            });
+    // Try Web Share API first (works best on iOS / mobile)
+    if (navigator.share) {
+        try {
+            const file = new File([blob], filename, { type: blob.type || mimeType });
+            // Try sharing without canShare guard (canShare is unreliable in WKWebView)
+            navigator.share({ files: [file] })
+                .catch(err => {
+                    if (err.name !== 'AbortError') {
+                        console.warn('Share failed, using fallback:', err);
+                        _downloadFallback(blob, filename);
+                    }
+                });
             return;
+        } catch (e) {
+            // File constructor or share not supported, fall through
+            console.warn('Share API error:', e);
         }
     }
 
-    // Fallback: classic download
     _downloadFallback(blob, filename);
 }
 
 function _downloadFallback(blob, filename) {
+    // In Capacitor WKWebView, <a download> doesn't work — it creates a text file.
+    // Instead, open the blob in a new window so iOS shows the "Open In" dialog.
+    if (window.Capacitor) {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result;
+            const w = window.open(dataUrl, '_blank');
+            if (!w) {
+                // Popup blocked — copy content to clipboard as last resort
+                if (blob.type && blob.type.includes('json')) {
+                    blob.text().then(text => {
+                        navigator.clipboard.writeText(text).then(() => {
+                            showToast('📋 JSON in Zwischenablage kopiert!', 'info');
+                        });
+                    });
+                } else {
+                    showToast('⚠️ Export konnte nicht geöffnet werden', 'warning');
+                }
+            }
+        };
+        reader.readAsDataURL(blob);
+        return;
+    }
+
+    // Desktop browser: classic <a download>
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
