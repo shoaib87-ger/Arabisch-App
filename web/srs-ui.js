@@ -1,6 +1,6 @@
 /**
  * srs-ui.js — SRS Review Session UI
- * Fullscreen overlay with card review flow, dashboard stats, and settings.
+ * Fullscreen overlay with card review flow, deck picker, dashboard stats, and settings.
  */
 const SrsUI = (() => {
     'use strict';
@@ -44,7 +44,13 @@ const SrsUI = (() => {
 
         // Build overlay
         _createOverlay();
-        _showDashboard();
+
+        // If no specific deck selected, show deck picker
+        if (!_deckFilter) {
+            _showDeckPicker();
+        } else {
+            _showDashboard();
+        }
     }
 
     // ── Close SRS Mode ──────────────────────────────────────────────
@@ -79,6 +85,98 @@ const SrsUI = (() => {
         document.body.style.overflow = 'hidden';
     }
 
+    // ── Deck Picker (chapter selection) ─────────────────────────────
+    async function _showDeckPicker() {
+        const content = document.getElementById('srsContent');
+        if (!content) return;
+
+        const allCards = await SrsDB.getAllCards();
+        const now = Date.now();
+
+        // Build deck stats from SRS cards
+        const deckMap = new Map();
+        for (const card of allCards) {
+            const deck = card.deck || 'default';
+            if (!deckMap.has(deck)) {
+                deckMap.set(deck, { id: deck, total: 0, due: 0, newCount: 0 });
+            }
+            const d = deckMap.get(deck);
+            d.total++;
+            if (card.due <= now) d.due++;
+            if (card.state === 'new') d.newCount++;
+        }
+
+        // Get deck display names from AppState.categories
+        const decks = Array.from(deckMap.values()).map(d => {
+            const cat = (typeof AppState !== 'undefined' && AppState.categories || []).find(c => c.id === d.id);
+            // Also check if it's a subcategory — find parent
+            let parentName = '';
+            if (cat && cat.parentId) {
+                const parent = AppState.categories.find(c => c.id === cat.parentId);
+                if (parent) parentName = parent.name + ' › ';
+            }
+            return {
+                ...d,
+                name: cat ? cat.name : d.id,
+                icon: cat ? (cat.icon || '📚') : '📚',
+                parentName
+            };
+        });
+
+        // Sort: decks with due cards first, then by name
+        decks.sort((a, b) => {
+            if (a.due > 0 && b.due === 0) return -1;
+            if (a.due === 0 && b.due > 0) return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        // Global totals
+        const totalDue = decks.reduce((s, d) => s + d.due, 0);
+        const totalCards = allCards.length;
+
+        const deckListHTML = decks.map(d => `
+            <button class="srs-deck-item ${d.due > 0 ? 'has-due' : ''}" onclick="SrsUI._selectDeck('${d.id}')">
+                <div class="srs-deck-item-left">
+                    <span class="srs-deck-icon">${d.icon}</span>
+                    <div class="srs-deck-info">
+                        ${d.parentName ? `<span class="srs-deck-parent">${_escapeHtml(d.parentName)}</span>` : ''}
+                        <span class="srs-deck-name">${_escapeHtml(d.name)}</span>
+                    </div>
+                </div>
+                <div class="srs-deck-item-right">
+                    ${d.due > 0 ? `<span class="srs-deck-due-badge">${d.due}</span>` : ''}
+                    ${d.newCount > 0 ? `<span class="srs-deck-new-badge">${d.newCount} neu</span>` : ''}
+                    <span class="srs-deck-total">${d.total}</span>
+                </div>
+            </button>
+        `).join('');
+
+        content.innerHTML = `
+            <div class="srs-dashboard">
+                <div class="srs-dashboard-icon">🧠</div>
+                <h2 class="srs-dashboard-title">Kapitel wählen</h2>
+                <p class="srs-dashboard-sub">Wähle ein Kapitel zum Wiederholen</p>
+
+                <!-- All chapters button -->
+                <button class="srs-start-btn" onclick="SrsUI._selectDeck(null)" style="margin-bottom: 16px;">
+                    📚 Alle Kapitel (${totalDue} fällig / ${totalCards} gesamt)
+                </button>
+
+                <!-- Individual chapters -->
+                <div class="srs-deck-list">
+                    ${deckListHTML.length > 0 ? deckListHTML : '<p style="color:#888;text-align:center;">Keine Karten vorhanden</p>'}
+                </div>
+            </div>
+        `;
+    }
+
+    // ── Select a deck and show dashboard ─────────────────────────────
+    function _selectDeck(deckId) {
+        _deckFilter = deckId;
+        _sessionStats = { reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 };
+        _showDashboard();
+    }
+
     // ── Dashboard ───────────────────────────────────────────────────
     async function _showDashboard() {
         const content = document.getElementById('srsContent');
@@ -93,11 +191,22 @@ const SrsUI = (() => {
         const dueCount = dueCards.length;
         const reviewedToday = _sessionStats.reviewed;
 
+        // Get deck display name
+        let deckLabel = 'Alle Kapitel';
+        if (_deckFilter) {
+            const cat = (typeof AppState !== 'undefined' && AppState.categories || []).find(c => c.id === _deckFilter);
+            deckLabel = cat ? `${cat.icon || ''} ${cat.name}` : _deckFilter;
+        }
+
         content.innerHTML = `
             <div class="srs-dashboard">
                 <div class="srs-dashboard-icon">🧠</div>
-                <h2 class="srs-dashboard-title">Spaced Repetition</h2>
-                <p class="srs-dashboard-sub">Lerne Karten basierend auf wissenschaftlichem Spacing</p>
+                <h2 class="srs-dashboard-title">${_escapeHtml(deckLabel)}</h2>
+                <p class="srs-dashboard-sub">
+                    <a href="#" class="srs-change-deck-link" onclick="event.preventDefault(); SrsUI._showDeckPicker();">
+                        ← Kapitel wechseln
+                    </a>
+                </p>
 
                 <div class="srs-stats-grid">
                     <div class="srs-stat-card srs-stat-due">
@@ -360,13 +469,17 @@ const SrsUI = (() => {
     async function _exportData() {
         const data = await SrsDB.exportAll();
         const json = JSON.stringify(data, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `srs-export-${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+        if (typeof downloadFile === 'function') {
+            downloadFile(json, `srs-export-${new Date().toISOString().slice(0, 10)}.json`, 'application/json;charset=utf-8;');
+        } else {
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `srs-export-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
         if (typeof showToast === 'function') showToast('✅ SRS Daten exportiert!', 'success');
     }
 
@@ -419,8 +532,8 @@ const SrsUI = (() => {
     // Expose internals via underscore convention for onclick handlers
     return {
         open, close, toggleSettings,
-        _startReview, _flip, _rate,
-        _showDashboard, _showExportImport, _exportData, _importData,
+        _startReview, _flip, _rate, _selectDeck,
+        _showDashboard, _showDeckPicker, _showExportImport, _exportData, _importData,
         _saveSettings
     };
 })();

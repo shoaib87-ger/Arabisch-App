@@ -5356,3 +5356,113 @@ select {
     cursor: pointer;
     margin-top: 8px;
 }
+
+/* ── Deck Picker ── */
+.srs-deck-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.srs-deck-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 12px 14px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s;
+    width: 100%;
+    text-align: left;
+}
+
+.srs-deck-item:active {
+    transform: scale(0.98);
+}
+
+.srs-deck-item.has-due {
+    border-left: 3px solid #e74c3c;
+}
+
+.srs-deck-item-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.srs-deck-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.srs-deck-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.srs-deck-parent {
+    font-size: 11px;
+    color: #aaa;
+    font-weight: 500;
+}
+
+.srs-deck-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a1a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.srs-deck-item-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.srs-deck-due-badge {
+    background: #e74c3c;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    min-width: 20px;
+    text-align: center;
+}
+
+.srs-deck-new-badge {
+    background: #e3f2fd;
+    color: #2980b9;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 8px;
+}
+
+.srs-deck-total {
+    font-size: 13px;
+    color: #aaa;
+    font-weight: 500;
+}
+
+.srs-change-deck-link {
+    color: #1a5e3a;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.srs-change-deck-link:active {
+    opacity: 0.7;
+}
