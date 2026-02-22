@@ -562,7 +562,6 @@ const EbookUI = {
             this.activeViewer.goToPage(num);
         }
         input.value = '';
-        const gotoEl = document.getElementById('ebookGoto');
-        if (gotoEl) gotoEl.style.display = 'none';
+        this._toggleGoTo(); // close the popup
     }
 };
