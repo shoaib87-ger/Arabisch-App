@@ -287,7 +287,7 @@ extension Data {
         // Use Apple's Compression framework for DEFLATE
         let size = self.count
         let bufferSize = size * 4 // initial output buffer
-        var outputBuffer = [UInt8](repeating: 0, count: max(bufferSize, 65536))
+        var outputBuffer = [UInt8](repeating: 0, count: Swift.max(bufferSize, 65536))
         
         let result = self.withUnsafeBytes { (inputPointer: UnsafeRawBufferPointer) -> Data? in
             guard let inputBase = inputPointer.baseAddress else { return nil }

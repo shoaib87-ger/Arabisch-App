@@ -193,7 +193,7 @@ class ZipArchiveReader {
             
             let compressionMethod = readUInt16(at: offset + 10)
             let compressedSize = Int(readUInt32(at: offset + 20))
-            let uncompressedSize = Int(readUInt32(at: offset + 24))
+            let _ = readUInt32(at: offset + 24) // uncompressedSize (unused)
             let nameLength = Int(readUInt16(at: offset + 28))
             let extraLength = Int(readUInt16(at: offset + 30))
             let commentLength = Int(readUInt16(at: offset + 32))
@@ -257,7 +257,7 @@ class ZipArchiveReader {
         // Search backwards for 0x06054b50
         let sig: [UInt8] = [0x50, 0x4b, 0x05, 0x06]
         let maxSearch = min(data.count, 65535 + 22)
-        for i in stride(from: data.count - 22, through: max(0, data.count - maxSearch), by: -1) {
+        for i in stride(from: data.count - 22, through: Swift.max(0, data.count - maxSearch), by: -1) {
             if data[i] == sig[0] && data[i+1] == sig[1] && data[i+2] == sig[2] && data[i+3] == sig[3] {
                 return i
             }
@@ -287,7 +287,7 @@ extension Data {
         // Use Apple's Compression framework for DEFLATE
         let size = self.count
         let bufferSize = size * 4 // initial output buffer
-        var outputBuffer = [UInt8](repeating: 0, count: max(bufferSize, 65536))
+        var outputBuffer = [UInt8](repeating: 0, count: Swift.max(bufferSize, 65536))
         
         let result = self.withUnsafeBytes { (inputPointer: UnsafeRawBufferPointer) -> Data? in
             guard let inputBase = inputPointer.baseAddress else { return nil }
