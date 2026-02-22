@@ -4808,3 +4808,476 @@ select {
 .shake {
     animation: shake 0.4s ease-in-out;
 }
+
+/* ===============================================================
+ * SRS SPACED REPETITION — Full UI
+ * ============================================================ */
+
+/* ── Overlay ── */
+.srs-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── Header ── */
+.srs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    background: linear-gradient(135deg, #1a5e3a, #0d3b24);
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.srs-back-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 4px 8px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.srs-title {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+
+.srs-settings-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: #fff;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Content Area ── */
+.srs-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px 16px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── Dashboard ── */
+.srs-dashboard {
+    text-align: center;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.srs-dashboard-icon {
+    font-size: 64px;
+    margin-bottom: 12px;
+}
+
+.srs-dashboard-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin: 0 0 6px;
+}
+
+.srs-dashboard-sub {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 24px;
+}
+
+.srs-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.srs-stat-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 16px 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.srs-stat-number {
+    display: block;
+    font-size: 28px;
+    font-weight: 800;
+    color: #1a1a1a;
+}
+
+.srs-stat-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.srs-stat-due .srs-stat-number {
+    color: #e74c3c;
+}
+
+.srs-stat-new .srs-stat-number {
+    color: #3498db;
+}
+
+.srs-stat-total .srs-stat-number {
+    color: #1a5e3a;
+}
+
+.srs-session-info {
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.srs-start-btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #1a5e3a, #0d3b24);
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 12px;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s, opacity 0.15s;
+}
+
+.srs-start-btn:active {
+    transform: scale(0.97);
+    opacity: 0.9;
+}
+
+.srs-import-btn {
+    background: linear-gradient(135deg, #2980b9, #1a5276);
+}
+
+.srs-export-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    background: #fff;
+    color: #555;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.srs-done-msg {
+    padding: 32px 16px;
+}
+
+.srs-done-icon {
+    font-size: 56px;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.srs-done-msg p {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.srs-done-hint {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: #888 !important;
+    margin-top: 8px !important;
+}
+
+/* ── Card Review ── */
+.srs-review-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+}
+
+.srs-review-state {
+    color: #1a5e3a;
+}
+
+.srs-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 32px 24px;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.srs-card:active {
+    transform: scale(0.98);
+}
+
+.srs-card-flipped {
+    cursor: default;
+}
+
+.srs-card-flipped:active {
+    transform: none;
+}
+
+.srs-card-text {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a1a;
+    text-align: center;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.srs-card-text.ar {
+    font-family: 'Noto Naskh Arabic', 'Scheherazade New', 'Amiri', serif;
+    direction: rtl;
+    font-size: 32px;
+}
+
+.srs-card-front-mini {
+    font-size: 18px;
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 8px;
+}
+
+.srs-card-front-mini.ar {
+    font-size: 20px;
+}
+
+.srs-card-divider {
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #1a5e3a, transparent);
+    margin: 12px 0;
+}
+
+.srs-card-back {
+    color: #1a5e3a;
+}
+
+.srs-card-note {
+    margin-top: 16px;
+    font-size: 14px;
+    font-style: italic;
+    color: #999;
+    text-align: center;
+}
+
+.srs-card-example {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #888;
+    text-align: center;
+}
+
+.srs-card-hint {
+    margin-top: 24px;
+    font-size: 13px;
+    color: #bbb;
+    font-weight: 500;
+}
+
+/* ── Rating Bar ── */
+.srs-rating-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 20px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.srs-rating-btn {
+    border: none;
+    border-radius: 14px;
+    padding: 14px 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-weight: 700;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s, opacity 0.1s;
+}
+
+.srs-rating-btn:active {
+    transform: scale(0.93);
+    opacity: 0.8;
+}
+
+.srs-rating-label {
+    font-size: 13px;
+}
+
+.srs-rating-key {
+    font-size: 11px;
+    opacity: 0.6;
+}
+
+.srs-rating-again {
+    background: #fdecea;
+    color: #c0392b;
+}
+
+.srs-rating-hard {
+    background: #fff3e0;
+    color: #e67e22;
+}
+
+.srs-rating-good {
+    background: #e8f5e9;
+    color: #27ae60;
+}
+
+.srs-rating-easy {
+    background: #e3f2fd;
+    color: #2980b9;
+}
+
+/* ── Settings Panel ── */
+.srs-settings-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10000;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    padding: 20px 16px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+.srs-settings-panel.active {
+    transform: translateY(0);
+}
+
+.srs-settings-content {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.srs-settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.srs-settings-header h4 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.srs-settings-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    color: #888;
+}
+
+.srs-setting-row {
+    margin-bottom: 16px;
+}
+
+.srs-setting-row label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.srs-setting-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.srs-setting-control input[type="range"] {
+    flex: 1;
+    accent-color: #1a5e3a;
+}
+
+.srs-setting-control span {
+    font-weight: 700;
+    font-size: 16px;
+    color: #1a5e3a;
+    min-width: 45px;
+    text-align: right;
+}
+
+.srs-setting-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    accent-color: #1a5e3a;
+    caret-color: #1a5e3a;
+}
+
+.srs-setting-input:focus {
+    outline: none;
+    border-color: #1a5e3a;
+    box-shadow: 0 0 0 2px rgba(26, 94, 58, 0.2);
+}
+
+.srs-save-settings-btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #1a5e3a, #0d3b24);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+}

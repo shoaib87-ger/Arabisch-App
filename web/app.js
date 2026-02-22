@@ -490,6 +490,10 @@ function renderSubcategories(groupId) {
                 <span class="mode-icon-badge ar">أ ب ت</span>
                 <span class="mode-label">Quiz AR→DE</span>
             </button>
+            <button class="mode-btn" onclick="startLearnMode('srs')">
+                <span class="mode-icon">🧠</span>
+                <span class="mode-label">SRS</span>
+            </button>
         </div>
         ${scopeLabel ? `<div class="scope-info">📌 ${scopeLabel} ausgewählt</div>` : '<div class="scope-info scope-hint">👆 Wähle unten eine Einheit oder \"Alle Karten\"</div>'}
     `;
@@ -684,6 +688,11 @@ function _updateSelectionCards(groupId) {
 
 /** Start the chosen learn mode with the current scope */
 function startLearnMode(mode) {
+    // SRS mode works globally — no scope selection needed
+    if (mode === 'srs') {
+        SrsUI.open();
+        return;
+    }
     if (!AppState.learnScope || AppState.currentCards.length === 0) {
         showToast('👆 Bitte zuerst eine Einheit oder \"Alle Karten\" auswählen', 'warning');
         return;
@@ -696,6 +705,8 @@ function startLearnMode(mode) {
     } else if (mode === 'quiz_ar_de') {
         if (AppState.currentCards.length < 4) { showToast('⚠️ Min. 4 Karten für Quiz nötig', 'warning'); return; }
         startQuiz('ar-de');
+    } else if (mode === 'srs') {
+        SrsUI.open();
     }
 }
 
