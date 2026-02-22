@@ -1070,18 +1070,55 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeGearMenu();
 });
 
-/** Show export dialog — pick a chapter first */
+/** Show export dialog — pick a chapter first via dropdown */
 function showGlobalExportDialog() {
     const groups = getGroups();
     if (groups.length === 0) { showToast('📭 Keine Kapitel vorhanden', 'info'); return; }
     if (groups.length === 1) { showExportDialog(groups[0].id); return; }
-    // Build a quick-pick list
-    const options = groups.map(g => `${g.icon} ${g.name}`).join('\n');
-    const pick = prompt('Welches Kapitel exportieren?\n\n' + options);
-    if (!pick) return;
-    const found = groups.find(g => pick.includes(g.name));
-    if (found) showExportDialog(found.id);
-    else showToast('⚠️ Kapitel nicht gefunden', 'warning');
+
+    // Build a modal with a proper dropdown
+    const optionsHtml = groups.map(g =>
+        `<option value="${g.id}">${g.icon} ${g.name}</option>`
+    ).join('');
+
+    // Reuse exportModal temporarily for picker
+    const modal = document.getElementById('exportModal');
+    const mc = modal.querySelector('.modal-content');
+    mc.innerHTML = `
+        <h3>📤 Kapitel zum Exportieren wählen</h3>
+        <select id="exportChapterPicker" class="form-input" style="margin-bottom: 12px; font-size: 16px; padding: 10px;">
+            ${optionsHtml}
+        </select>
+        <button class="btn btn-primary mb-sm" onclick="_confirmExportChapter()">✅ Weiter</button>
+        <button class="btn btn-secondary" onclick="closeModal('exportModal'); _restoreExportModal();">Abbrechen</button>
+    `;
+    modal.classList.add('active');
+}
+
+/** Called after user picks chapter from dropdown */
+function _confirmExportChapter() {
+    const sel = document.getElementById('exportChapterPicker');
+    if (!sel) return;
+    const catId = sel.value;
+    closeModal('exportModal');
+    _restoreExportModal();
+    if (catId) showExportDialog(catId);
+}
+
+/** Restore the export modal to its default content */
+function _restoreExportModal() {
+    const mc = document.getElementById('exportModal').querySelector('.modal-content');
+    mc.innerHTML = `
+        <h3>📥 Exportieren</h3>
+        <p id="exportModalInfo" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 12px;"></p>
+        <button class="btn btn-primary mb-sm" id="exportFullBtn" onclick="exportFullJSON()">
+            📦 Komplett-Export (Kapitel + Einheiten + Vokabeln)
+        </button>
+        <button class="btn btn-secondary mb-sm" id="exportCsvBtn" onclick="exportCSVOnly()">
+            📄 Nur Vokabeln (CSV)
+        </button>
+        <button class="btn btn-secondary" onclick="closeModal('exportModal')">Abbrechen</button>
+    `;
 }
 
 /** Show merge dialog — pick a chapter first */
@@ -3027,6 +3064,29 @@ function sanitizeFilename(name) {
 
 function downloadFile(content, filename, mimeType) {
     const blob = new Blob([content], { type: mimeType });
+
+    // On iOS / mobile: use Web Share API so user can choose save location
+    if (navigator.share && navigator.canShare) {
+        const file = new File([blob], filename, { type: mimeType });
+        if (navigator.canShare({ files: [file] })) {
+            navigator.share({
+                files: [file],
+                title: filename
+            }).catch(err => {
+                // If user cancelled share or it's not supported, fallback
+                if (err.name !== 'AbortError') {
+                    _downloadFallback(blob, filename);
+                }
+            });
+            return;
+        }
+    }
+
+    // Fallback: classic download
+    _downloadFallback(blob, filename);
+}
+
+function _downloadFallback(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
