@@ -4734,6 +4734,14 @@ select {
     -moz-appearance: textfield;
     -webkit-appearance: none;
     appearance: none;
+    accent-color: #1a5e3a;
+    caret-color: #1a5e3a;
+    outline: none;
+}
+
+.ebook-goto-input:focus {
+    border-color: #1a5e3a;
+    box-shadow: 0 0 0 2px rgba(26, 94, 58, 0.3);
 }
 
 .ebook-goto-input::-webkit-outer-spin-button,
