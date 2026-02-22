@@ -9,8 +9,6 @@
     "ios": {
         "contentInset": "never",
         "backgroundColor": "#c8952e",
-        "preferredContentMode": "mobile",
-        "allowsLinkPreview": false,
-        "scrollEnabled": false
+        "allowsLinkPreview": false
     }
 }

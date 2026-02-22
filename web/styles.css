@@ -5466,3 +5466,112 @@ select {
 .srs-change-deck-link:active {
     opacity: 0.7;
 }
+
+/* ── iPad & Tablet Responsive Layout ── */
+@media (min-width: 768px) {
+
+    /* Center main content with comfortable max-width */
+    .tab-content {
+        max-width: 720px;
+        margin: 0 auto;
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+
+    /* Category grid: 2 columns on tablet */
+    .categories-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 16px;
+    }
+
+    /* Mode buttons: bigger on tablet */
+    .mode-btn {
+        padding: 16px 20px;
+    }
+
+    /* Modals: constrain width */
+    .modal-content {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    /* Flashcard area */
+    .flashcard-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* Quiz area */
+    .quiz-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* SRS dashboard and cards */
+    .srs-dashboard {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .srs-card {
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .srs-rating-bar {
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* Ebook reader: wider content area */
+    .ebook-content {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    /* Header and tab bar: add spacing */
+    .app-header {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
+/* ── Wide tablets / landscape iPad ── */
+@media (min-width: 1024px) {
+    .tab-content {
+        max-width: 900px;
+    }
+
+    .categories-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    .ebook-content {
+        max-width: 960px;
+    }
+}
+
+/* ── Landscape phone adjustments ── */
+@media (orientation: landscape) and (max-height: 500px) {
+    .app-header {
+        padding-top: 2px;
+        padding-bottom: 2px;
+    }
+
+    .app-header h1 {
+        font-size: 18px;
+    }
+
+    .tab-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    /* Reduce flashcard/quiz padding in landscape phone */
+    .flashcard-container,
+    .quiz-container {
+        padding: 8px;
+    }
+}
